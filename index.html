@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<!-- 移动端基础 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no, email=no, address=no">
+
+<!-- PWA / iOS / Android 全套配置 -->
+<meta name="application-name" content="富婆的财富日记">
+<meta name="apple-mobile-web-app-title" content="富婆的财富日记">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#5a8a4a">
+<meta name="msapplication-TileColor" content="#5a8a4a">
+<meta name="msapplication-TileImage" content="icon-192.png">
+
+<meta name="description" content="富婆的财富日记 - 记账 · 购物确认 · 先用后付管理">
+<meta name="keywords" content="记账,个人记账,富婆的财富日记,购物确认,先用后付">
+
+<!-- 应用清单 -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="shortcut icon" href="favicon-32.png">
+
+<!-- iOS 桌面图标 (180x180 是 iPhone 必备) -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="167x167" href="apple-touch-icon-ipad.png">
+
+<!-- iOS 启动画面 (iPhone 各型号) -->
+<link rel="apple-touch-startup-image" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" href="splash-640x1136.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="splash-750x1334.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)" href="splash-1080x1920.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="splash-1125x2436.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="splash-828x1792.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" href="splash-1242x2688.png">
+<link rel="apple-touch-startup-image" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" href="splash-1536x2048.png">
+<link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" href="splash-2048x2732.png">
+
+<title>富婆的财富日记</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 遮罩层 -->
+<div id="overlay" class="overlay"></div>
+
+<!-- 左侧隐藏式导航 -->
+<nav id="sidebar" class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">🌿</div>
+    <div class="sidebar-title">富婆的财富日记</div>
+  </div>
+  <ul class="nav-list">
+    <li class="nav-item active" data-page="home"><span class="nav-icon">🏠</span><span>工作台</span></li>
+    <li class="nav-item" data-page="calendar"><span class="nav-icon">📅</span><span>日历</span></li>
+    <li class="nav-item" data-page="accounts"><span class="nav-icon">🧾</span><span>账本</span></li>
+    <li class="nav-item" data-page="shopping"><span class="nav-icon">🛒</span><span>我的购物</span></li>
+    <li class="nav-item" data-page="reports"><span class="nav-icon">📊</span><span>报表</span></li>
+    <li class="nav-divider"></li>
+    <li class="nav-item" data-page="categories"><span class="nav-icon">🏷</span><span>分类管理</span></li>
+    <li class="nav-item" data-page="platforms"><span class="nav-icon">🛍</span><span>购物平台</span></li>
+    <li class="nav-item" data-page="payments"><span class="nav-icon">💳</span><span>支付方式</span></li>
+    <li class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span><span>设置</span></li>
+  </ul>
+  <div class="sidebar-footer">
+    <div class="mascot-mini" id="sidebar-mascot"></div>
+    <p>愿你的每一笔花费<br>都值得被温柔记录 🌱</p>
+  </div>
+</nav>
+
+<!-- 主内容区 -->
+<div id="app" class="app">
+
+  <!-- 顶部栏 -->
+  <header class="topbar">
+    <button class="menu-btn" id="menu-btn" aria-label="菜单">
+      <span id="menu-icon">☰</span>
+    </button>
+    <h1 class="topbar-title" id="page-title">工作台</h1>
+    <div class="topbar-spacer"></div>
+  </header>
+
+  <!-- 页面容器 -->
+  <main class="main-content" id="main-content">
+    <!-- 各页面动态渲染 -->
+  </main>
+
+  <!-- 浮动新增按钮 -->
+  <button class="fab" id="fab" aria-label="新增">
+    <span class="fab-icon">＋</span>
+  </button>
+
+</div>
+
+<!-- 新增/编辑弹窗 -->
+<div id="modal-container"></div>
+
+<!-- Toast 提示 -->
+<div id="toast" class="toast"></div>
+
+<!-- 确认弹窗容器 -->
+<div id="confirm-container"></div>
+
+<!-- 安装引导横幅（Android/Chrome） -->
+<div id="install-banner" class="install-banner" style="display:none;">
+  <div class="install-banner-icon">💰</div>
+  <div class="install-banner-text">
+    <div class="install-banner-title">安装「富婆的财富日记」</div>
+    <div class="install-banner-desc">添加到桌面，像 App 一样使用</div>
+  </div>
+  <button id="install-btn" class="install-banner-btn">安装</button>
+  <button id="install-close" class="install-banner-close" aria-label="关闭">×</button>
+</div>
+
+<!-- iOS 安装引导弹窗 -->
+<div id="ios-install-hint" class="ios-install-hint" style="display:none;">
+  <div class="ios-hint-content">
+    <div class="ios-hint-emoji">📱</div>
+    <div class="ios-hint-title">添加到主屏幕</div>
+    <div class="ios-hint-steps">
+      点击底部 <strong>分享按钮</strong> <span style="font-size:18px;">⬆️</span><br>
+      选择 <strong>「添加到主屏幕」</strong> <span style="font-size:18px;">➕</span>
+    </div>
+    <button id="ios-hint-close" class="ios-hint-btn">知道了</button>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="mascot.js"></script>
+<script src="pages.js"></script>
+<script src="app.js"></script>
+<script>
+// =============== PWA 核心：Service Worker + 安装引导 ===============
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        // 监听更新
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[PWA] 新版本可用，请刷新');
+              if (window.App && App.toast) {
+                App.toast('新版本已就绪，刷新即可使用 ✨');
+              }
+            }
+          });
+        });
+        console.log('[PWA] Service Worker 注册成功');
+      })
+      .catch(err => console.log('[PWA] SW注册失败:', err));
+  });
+}
+
+// =============== 安装横幅引导 ===============
+let deferredInstallPrompt = null;
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                   || window.navigator.standalone === true;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isDismissed = sessionStorage.getItem('install-dismissed');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // 阻止 Chrome 默认的安装弹窗
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // 已经在用 PWA 或已关闭 → 不显示
+  if (isStandalone || isDismissed) return;
+  // 显示自定义安装横幅
+  setTimeout(() => {
+    const banner = document.getElementById('install-banner');
+    if (banner) banner.style.display = 'flex';
+  }, 3000); // 延迟 3 秒，等用户先看一眼应用
+});
+
+window.addEventListener('appinstalled', () => {
+  console.log('[PWA] 应用已安装');
+  deferredInstallPrompt = null;
+  const banner = document.getElementById('install-banner');
+  if (banner) banner.style.display = 'none';
+});
+
+// 安装按钮
+document.addEventListener('DOMContentLoaded', () => {
+  const installBtn = document.getElementById('install-btn');
+  const installClose = document.getElementById('install-close');
+  const iosHintClose = document.getElementById('ios-hint-close');
+
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        console.log('[PWA] 用户接受安装');
+      }
+      deferredInstallPrompt = null;
+      const banner = document.getElementById('install-banner');
+      if (banner) banner.style.display = 'none';
+    });
+  }
+  if (installClose) {
+    installClose.addEventListener('click', () => {
+      sessionStorage.setItem('install-dismissed', '1');
+      const banner = document.getElementById('install-banner');
+      if (banner) banner.style.display = 'none';
+    });
+  }
+  if (iosHintClose) {
+    iosHintClose.addEventListener('click', () => {
+      sessionStorage.setItem('install-dismissed', '1');
+      const hint = document.getElementById('ios-install-hint');
+      if (hint) hint.style.display = 'none';
+    });
+  }
+  // iOS 用户特殊引导（Safari 不支持 beforeinstallprompt）
+  if (isIOS && !isStandalone && !isDismissed) {
+    setTimeout(() => {
+      // 检查是否已显示过
+      if (!sessionStorage.getItem('ios-hint-shown')) {
+        const hint = document.getElementById('ios-install-hint');
+        if (hint) {
+          hint.style.display = 'flex';
+          sessionStorage.setItem('ios-hint-shown', '1');
+        }
+      }
+    }, 5000);
+  }
+});
+</script>
+</body>
+</html>

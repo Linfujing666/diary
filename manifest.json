@@ -1,0 +1,63 @@
+{
+  "id": "/?source=pwa",
+  "name": "富婆的财富日记",
+  "short_name": "财富日记",
+  "description": "富婆的财富日记 - 记账 · 购物确认 · 先用后付管理",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#3d6b34",
+  "theme_color": "#5a8a4a",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "categories": ["finance", "lifestyle", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "记一笔",
+      "short_name": "记账",
+      "url": "./index.html?action=add",
+      "description": "快速记账"
+    },
+    {
+      "name": "我的购物",
+      "short_name": "购物",
+      "url": "./index.html?page=shopping",
+      "description": "查看待处理购物"
+    },
+    {
+      "name": "查看报表",
+      "short_name": "报表",
+      "url": "./index.html?page=reports",
+      "description": "查看月度报表"
+    }
+  ]
+}
