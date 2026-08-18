@@ -91,6 +91,20 @@ img { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  /* html 是文档根滚动容器，overflow-x: hidden 在这里是安全的 */
+  overflow-x: hidden;
+}
+
+body {
+  /* 注意：不能用 overflow-x: hidden！
+     规范规定一轴 hidden 会把另一轴的 visible 强制计算为 auto，
+     导致 body 变成滚动容器；body 自身滚不动 + overscroll-behavior
+     禁止滚动链传播 → 真机触摸滑动会被"卡死"。
+     overflow-x: clip 同样能裁掉横向溢出，但不会创建滚动容器。 */
+  overflow-x: clip;
+}
+
 html, body {
   font-family: var(--font-main);
   background: var(--warm-cream);
@@ -98,7 +112,6 @@ html, body {
   font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
