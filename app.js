@@ -1146,6 +1146,67 @@ const App = {
     this.showXQZImportGuide();
   },
 
+  // ============================================
+  // Excel 模板导入（v1.5.0）
+  // ============================================
+  excelImport() {
+    const html = `
+      <div class="modal-overlay" onclick="if(event.target===this)App.closeModal()">
+        <div class="modal-sheet">
+          <div class="modal-header">
+            <div class="modal-title">📊 Excel 模板导入</div>
+            <button class="modal-close" onclick="App.closeModal()">×</button>
+          </div>
+
+          <div style="background:var(--soft-green-bg);border-radius:12px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.8;">
+            <div style="font-weight:600;color:var(--forest-green);margin-bottom:8px;">📋 使用流程</div>
+            <div style="line-height:2;">
+              1️⃣ 点下方「<strong>下载模板</strong>」，得到一份 .xlsx 文件<br>
+              2️⃣ 用 <strong>Excel / WPS</strong> 打开，按「填写说明」页填数据<br>
+              3️⃣ 保存后回到这里，点「<strong>选择文件导入</strong>」<br>
+              4️⃣ 数据就整整齐齐进账本啦
+            </div>
+          </div>
+
+          <div style="background:#fff8e1;border-radius:12px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.8;">
+            <strong style="color:var(--warn-color);">💡 小贴士</strong><br>
+            · 模板里有示例行，导入前记得删除<br>
+            · 模板的「填写说明」页列出了你现有的分类，照着填不会乱<br>
+            · 从小青账导出的文件也兼容这个导入（列名一样）<br>
+            · 导入是<strong>追加</strong>，不会覆盖现有账目
+          </div>
+
+          <div class="modal-actions" style="flex-direction:column;">
+            <button class="btn btn-primary" style="width:100%;" onclick="App.downloadExcelTemplate()">📥 下载模板（.xlsx）</button>
+            <button class="btn btn-secondary" style="width:100%;" onclick="App._pickXQZFile()">📂 选择文件导入</button>
+          </div>
+        </div>
+      </div>
+    `;
+    this.showModal(html);
+  },
+
+  downloadExcelTemplate() {
+    this.toast('正在生成模板... ⏳', 2000);
+    DB.exportTemplate().then(buf => {
+      const blob = new Blob([buf], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '富婆的财富日记_导入模板.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      this.toast('模板已下载 📥 用 Excel/WPS 填好后再来导入');
+    }).catch(err => {
+      console.error(err);
+      this.toast('模板生成失败：' + (err.message || '请检查网络'), 3000);
+    });
+  },
+
   showXQZImportGuide() {
     const html = `
       <div class="modal-overlay" onclick="if(event.target===this)App.closeModal()">

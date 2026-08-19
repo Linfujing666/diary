@@ -342,6 +342,9 @@ const DB = {
     const note = String(row['备注'] || row['说明'] || row['remark'] || row['Remark'] || '').trim();
     const source = String(row['来源'] || row['Source'] || '').trim();
 
+    // 跳过模板里的示例行（备注含"示例行"标记）
+    if (note.includes('示例行') || note.includes('导入前请删除')) return null;
+
     // 分类映射
     let categoryId = '';
     let subCategory = smallCat;
@@ -386,6 +389,9 @@ const DB = {
     const outAccount = String(row['转出账户'] || row['转出'] || row['转出账户名称'] || row['From Account'] || '').trim();
     const inAccount = String(row['转入账户'] || row['转入'] || row['转入账户名称'] || row['To Account'] || '').trim();
     const note = String(row['备注'] || row['说明'] || row['remark'] || '').trim();
+
+    // 跳过模板里的示例行
+    if (note.includes('示例行') || note.includes('导入前请删除')) return null;
 
     return {
       id: this.genId('acc'),
@@ -465,6 +471,83 @@ const DB = {
       script.onload = () => resolve(window.XLSX);
       script.onerror = () => reject(new Error('无法加载 Excel 解析库'));
       document.head.appendChild(script);
+    });
+  },
+
+  // ============================================
+  // Excel 模板导入（v1.5.0 新增）
+  // 生成标准模板：3 个数据 Sheet + 1 个填写说明 Sheet
+  // 数据 Sheet 的列名与 importXiaoqingzhang 的解析完全对齐
+  // ============================================
+  exportTemplate() {
+    return this._loadXLSX().then(XLSX => {
+      const wb = XLSX.utils.book_new();
+
+      // ---- 支出 Sheet ----
+      const expenseHeader = ['时间', '账户', '大类', '小类', '金额', '备注'];
+      const expenseExample = [
+        ['2026-08-19', '微信', '餐饮', '午餐', '25.5', '（示例行，导入前请删除）'],
+        ['2026-08-19', '支付宝', '购物', '衣服', '199', '（示例行，导入前请删除）'],
+      ];
+      const ws1 = XLSX.utils.aoa_to_sheet([expenseHeader, ...expenseExample]);
+      // 设置列宽，方便手机上查看
+      ws1['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 24 }];
+      XLSX.utils.book_append_sheet(wb, ws1, '支出');
+
+      // ---- 收入 Sheet ----
+      const incomeExample = [
+        ['2026-08-19', '银行卡', '工资', '月薪', '8000', '（示例行，导入前请删除）'],
+      ];
+      const ws2 = XLSX.utils.aoa_to_sheet([expenseHeader, ...incomeExample]);
+      ws2['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 24 }];
+      XLSX.utils.book_append_sheet(wb, ws2, '收入');
+
+      // ---- 转账 Sheet ----
+      const transferHeader = ['时间', '转出账户', '转入账户', '转出金额', '备注'];
+      const transferExample = [
+        ['2026-08-19', '银行卡', '支付宝', '500', '（示例行，导入前请删除）'],
+      ];
+      const ws3 = XLSX.utils.aoa_to_sheet([transferHeader, ...transferExample]);
+      ws3['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 24 }];
+      XLSX.utils.book_append_sheet(wb, ws3, '转账');
+
+      // ---- 填写说明 Sheet（含当前分类对照表）----
+      const expenseCatNames = this.data.expenseCategories.map(c => c.name).join('、');
+      const incomeCatNames = this.data.incomeCategories.map(c => c.name).join('、');
+      const subCatLines = [];
+      this.data.expenseCategories.forEach(c => {
+        if (c.subCategories && c.subCategories.length) {
+          subCatLines.push(['', c.name + '的小类：' + c.subCategories.join('、')]);
+        }
+      });
+      const guide = [
+        ['【填写说明 · 请先读完再填】'],
+        [''],
+        ['1. 请勿修改 Sheet 名称和第一行表头，直接在下面填数据'],
+        ['2. 时间格式：2026-08-19 或 2026/8/19（也可带时分秒）'],
+        ['3. 金额：纯数字，不要带"元"或"¥"'],
+        ['4. 账户可填：微信 / 支付宝 / 花呗 / 京东白条 / 信用卡 / 现金 / 银行卡'],
+        ['   （其他写法也行，只是不会自动关联支付方式）'],
+        ['5. 大类/小类：可参考下方你现有的分类对照表；没匹配上的会自动新建分类'],
+        ['6. 转账 Sheet 只需填：时间、转出账户、转入账户、转出金额、备注'],
+        ['7. 示例行（写着"导入前请删除"的行）记得删掉再导入'],
+        [''],
+        ['【你现在的支出分类（大类）】'],
+        [expenseCatNames || '（暂无）'],
+        ['【你现在的收入分类（大类）】'],
+        [incomeCatNames || '（暂无）'],
+        ['【各分类的小类】'],
+        ...(subCatLines.length ? subCatLines : [['（暂无小类）']]),
+        [''],
+        ['【导入方法】'],
+        ['填好后保存 .xlsx 文件 → App 设置 → Excel 模板导入 → 选择文件'],
+      ];
+      const ws4 = XLSX.utils.aoa_to_sheet(guide);
+      ws4['!cols'] = [{ wch: 60 }];
+      XLSX.utils.book_append_sheet(wb, ws4, '填写说明');
+
+      // 输出为 ArrayBuffer（浏览器端用 Blob 下载，兼容 PWA 环境）
+      return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     });
   },
 

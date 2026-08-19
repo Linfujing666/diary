@@ -902,10 +902,16 @@ const Pages = {
 
       <div class="settings-group">
         <div class="settings-group-title">数据迁移</div>
-        <div class="settings-item" onclick="App.importXiaoqingzhang()" style="border-left:3px solid var(--forest-green);">
+        <div class="settings-item" onclick="App.excelImport()" style="border-left:3px solid var(--forest-green);">
           <span class="settings-icon">📊</span>
+          <span class="settings-label">Excel 模板导入</span>
+          <span class="settings-value" style="color:var(--forest-green);font-size:11px;">推荐</span>
+          <span class="settings-arrow">›</span>
+        </div>
+        <div class="settings-item" onclick="App.importXiaoqingzhang()">
+          <span class="settings-icon">📥</span>
           <span class="settings-label">从小青账导入</span>
-          <span class="settings-value" style="color:var(--forest-green);font-size:11px;">.xlsx</span>
+          <span class="settings-value" style="font-size:11px;">.xlsx</span>
           <span class="settings-arrow">›</span>
         </div>
       </div>
