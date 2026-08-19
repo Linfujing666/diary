@@ -8,6 +8,14 @@ const Pages = {
   accountsFilter: { type: '', category: '' },
   shoppingTab: 'all',
   reportMonth: { y: new Date().getFullYear(), m: new Date().getMonth() + 1 },
+  reportDrill: null, // { y, m, type: 'category'|'platform'|'payment', id }
+
+  // 紧凑金额：日历格子等窄空间显示（12345.6 → 1.2万；999 → 原样）
+  compactMoney(v) {
+    if (v >= 10000) return (v / 10000).toFixed(1).replace(/\.0$/, '') + '万';
+    if (v >= 1000) return Math.round(v).toString();
+    return DB.formatMoney(v);
+  },
 
   // ============================================
   // 首页 / 工作台
@@ -115,10 +123,10 @@ const Pages = {
         ${catStats.slice(0, 6).map((cat, i) => {
           const pct = (cat.amount / totalExpense * 100).toFixed(1);
           return `
-            <div class="category-bar-item">
+            <div class="category-bar-item clickable" onclick="Pages.openReportDetail('category', '${cat.categoryId}')">
               <div class="category-bar-header">
                 <span class="category-bar-name">${cat.icon} ${cat.categoryName}</span>
-                <span class="category-bar-amount">¥${DB.formatMoney(cat.amount)} <span style="color:var(--text-light);font-size:11px;font-weight:400;">${pct}%</span></span>
+                <span class="category-bar-amount">¥${DB.formatMoney(cat.amount)} <span style="color:var(--text-light);font-size:11px;font-weight:400;">${pct}%</span> <span class="drill-chevron">›</span></span>
               </div>
               <div class="category-bar-track">
                 <div class="category-bar-fill" style="width:${pct}%;background:${catColors[i % catColors.length]};"></div>
@@ -265,8 +273,8 @@ const Pages = {
       const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const sum = daySummary[d];
       const isToday = dateStr === today;
-      const expenseStr = sum && sum.expense > 0 ? `<div class="day-expense">${DB.formatMoney(sum.expense)}</div>` : '';
-      const incomeStr = sum && sum.income > 0 ? `<div class="day-income">${DB.formatMoney(sum.income)}</div>` : '';
+      const expenseStr = sum && sum.expense > 0 ? `<div class="day-expense">${this.compactMoney(sum.expense)}</div>` : '';
+      const incomeStr = sum && sum.income > 0 ? `<div class="day-income">${this.compactMoney(sum.income)}</div>` : '';
       days += `
         <div class="calendar-day ${isToday ? 'today' : ''}" onclick="Pages.selectCalendarDay('${dateStr}')">
           <div class="day-num">${d}</div>
@@ -637,12 +645,13 @@ const Pages = {
             <text x="60" y="70" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text-primary)">¥${DB.formatMoney(totalCat)}</text>
           </svg>
           <div class="pie-legend">
-            ${catStats.slice(0, 8).map((cat, i) => `
-              <div class="pie-legend-item">
+            ${catStats.map((cat, i) => `
+              <div class="pie-legend-item clickable" onclick="Pages.openReportDetail('category', '${cat.categoryId}')">
                 <span class="pie-legend-dot" style="background:${catColors[i % catColors.length]};"></span>
                 <span class="pie-legend-name">${cat.icon} ${cat.categoryName}</span>
                 <span class="pie-legend-value">¥${DB.formatMoney(cat.amount)}</span>
                 <span class="pie-legend-pct">${(cat.amount / totalCat * 100).toFixed(0)}%</span>
+                <span class="drill-chevron">›</span>
               </div>
             `).join('')}
           </div>
@@ -658,13 +667,14 @@ const Pages = {
           const total = platformStats.reduce((s, x) => s + x.amount, 0) || 1;
           const pct = (p.amount / total * 100).toFixed(1);
           return `
-            <div class="stat-list-item">
+            <div class="stat-list-item clickable" onclick="Pages.openReportDetail('platform', '${p.platformId}')">
               <div class="stat-list-icon" style="background:${p.color}20;">${p.icon}</div>
               <div class="stat-list-info">
                 <div class="stat-list-name">${p.platformName} <span style="color:var(--text-light);font-size:11px;">${pct}%</span></div>
                 <div class="stat-list-bar"><div class="stat-list-bar-fill" style="width:${pct}%;background:${p.color};"></div></div>
               </div>
               <div class="stat-list-amount">¥${DB.formatMoney(p.amount)}</div>
+              <span class="drill-chevron">›</span>
             </div>
           `;
         }).join('')}
@@ -681,13 +691,14 @@ const Pages = {
           const pm = DB.getPaymentMethod(p.paymentId);
           const color = pm && pm.type === 'bnpl' ? '#d4a25e' : '#8ba888';
           return `
-            <div class="stat-list-item">
+            <div class="stat-list-item clickable" onclick="Pages.openReportDetail('payment', '${p.paymentId}')">
               <div class="stat-list-icon" style="background:${color}20;">${p.icon}</div>
               <div class="stat-list-info">
                 <div class="stat-list-name">${p.paymentName} ${pm && pm.type === 'bnpl' ? '<span style="font-size:10px;color:var(--warn-color);">先用后付</span>' : ''} <span style="color:var(--text-light);font-size:11px;">${pct}%</span></div>
                 <div class="stat-list-bar"><div class="stat-list-bar-fill" style="width:${pct}%;background:${color};"></div></div>
               </div>
               <div class="stat-list-amount">¥${DB.formatMoney(p.amount)}</div>
+              <span class="drill-chevron">›</span>
             </div>
           `;
         }).join('')}
@@ -703,6 +714,146 @@ const Pages = {
     const d = new Date(this.reportMonth.y, this.reportMonth.m - 1 + delta, 1);
     this.reportMonth = { y: d.getFullYear(), m: d.getMonth() + 1 };
     this.render();
+  },
+
+  // ============================================
+  // 报表下钻：分类 / 平台 / 支付方式 明细页
+  // ============================================
+  openReportDetail(type, id) {
+    const { y, m } = this.reportMonth;
+    this.reportDrill = { y, m, type, id };
+    this.current = 'report-detail';
+    this.render();
+  },
+
+  backToReports() {
+    // 明细页切换过的月份带回报表页，保持上下文一致
+    if (this.reportDrill) {
+      this.reportMonth = { y: this.reportDrill.y, m: this.reportDrill.m };
+    }
+    this.reportDrill = null;
+    this.current = 'reports';
+    this.render();
+  },
+
+  changeReportDetailMonth(delta) {
+    if (!this.reportDrill) return;
+    const d = new Date(this.reportDrill.y, this.reportDrill.m - 1 + delta, 1);
+    this.reportDrill.y = d.getFullYear();
+    this.reportDrill.m = d.getMonth() + 1;
+    this.render();
+  },
+
+  reportDetail() {
+    const { y, m, type, id } = this.reportDrill;
+
+    // 名称与图标
+    let drillName = '明细', drillIcon = '📝';
+    if (type === 'category') {
+      const c = DB.getCategoryById(id);
+      if (c) { drillName = c.name; drillIcon = c.icon; }
+    } else if (type === 'platform') {
+      drillName = DB.getPlatformName(id);
+      drillIcon = DB.getPlatformIcon(id);
+    } else if (type === 'payment') {
+      drillName = DB.getPaymentMethodName(id);
+      drillIcon = DB.getPaymentMethodIcon(id);
+    }
+
+    // 当月该维度的所有支出
+    const accounts = DB.getMonthAccounts(y, m)
+      .filter(a => a.type === 'expense')
+      .filter(a => type === 'category' ? a.categoryId === id
+        : type === 'platform' ? a.platform === id
+        : a.paymentMethod === id)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
+    const total = accounts.reduce((s, a) => s + a.amount, 0);
+    const monthSummary = DB.getMonthSummary(y, m);
+    const share = monthSummary.expense > 0 ? (total / monthSummary.expense * 100).toFixed(1) : '0';
+    const avg = accounts.length ? total / accounts.length : 0;
+    const maxAmount = Math.max(...accounts.map(a => a.amount), 1);
+
+    // 按日期分组（倒序）
+    const groups = {};
+    accounts.forEach(a => {
+      if (!groups[a.date]) groups[a.date] = [];
+      groups[a.date].push(a);
+    });
+    const dateKeys = Object.keys(groups).sort().reverse();
+
+    const groupHtml = dateKeys.map(date => {
+      const dayAccounts = groups[date];
+      const dayTotal = dayAccounts.reduce((s, a) => s + a.amount, 0);
+      const day = parseInt(date.slice(8, 10));
+      return `
+        <div class="report-date-group">
+          <div class="report-date-header">
+            <span>${m}月${day}日</span>
+            <span class="report-date-total">共${dayAccounts.length}笔 · ¥${DB.formatMoney(dayTotal)}</span>
+          </div>
+          ${dayAccounts.map(a => {
+            const barPct = Math.max((a.amount / maxAmount * 100).toFixed(0), 3);
+            return `
+              <div class="account-item" onclick="App.editAccount('${a.id}')">
+                <div class="account-icon" style="background:rgba(196,122,106,0.08)">${drillIcon}</div>
+                <div class="account-info">
+                  <div class="account-category">${a.subCategory || drillName}</div>
+                  ${a.note ? `<div class="account-note">${a.note}</div>` : ''}
+                  <div class="account-mini-bar"><div class="account-mini-bar-fill" style="width:${barPct}%;"></div></div>
+                </div>
+                <div class="account-amount expense">-¥${DB.formatMoney(a.amount)}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="card" style="display:flex;align-items:center;gap:6px;justify-content:space-between;">
+        <button class="calendar-nav-btn" onclick="Pages.backToReports()" title="返回报表">‹</button>
+        <div style="font-size:16px;font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${drillIcon} ${drillName}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="calendar-nav-btn" onclick="Pages.changeReportDetailMonth(-1)">‹</button>
+          <span style="font-size:13px;font-weight:600;color:var(--text-secondary);">${y}年${m}月</span>
+          <button class="calendar-nav-btn" onclick="Pages.changeReportDetailMonth(1)">›</button>
+        </div>
+      </div>
+
+      <div class="report-summary-row">
+        <div class="report-summary-card">
+          <div class="accounts-summary-label">总支出</div>
+          <div class="accounts-summary-value expense">¥${DB.formatMoney(total)}</div>
+        </div>
+        <div class="report-summary-card">
+          <div class="accounts-summary-label">笔数</div>
+          <div class="accounts-summary-value">${accounts.length}笔</div>
+        </div>
+        <div class="report-summary-card">
+          <div class="accounts-summary-label">占月支出</div>
+          <div class="accounts-summary-value" style="color:var(--forest-green);">${share}%</div>
+        </div>
+      </div>
+
+      <div class="report-summary-row">
+        <div class="report-summary-card">
+          <div class="accounts-summary-label">平均单笔</div>
+          <div class="accounts-summary-value" style="color:var(--sage-green);">¥${DB.formatMoney(avg)}</div>
+        </div>
+        <div class="report-summary-card">
+          <div class="accounts-summary-label">最高单笔</div>
+          <div class="accounts-summary-value" style="color:var(--expense-color);">¥${DB.formatMoney(maxAmount)}</div>
+        </div>
+      </div>
+
+      <div class="card report-section">
+        <div class="card-title"><span class="title-icon">📋</span>${y}年${m}月 · ${drillName}账单明细</div>
+        ${accounts.length > 0 ? groupHtml : Mascot.renderEmpty('empty', '这个月还没有该分类的支出哦～')}
+      </div>
+
+      <div style="height:20px;"></div>
+    `;
   },
 
   // ============================================
@@ -965,10 +1116,20 @@ const Pages = {
     const titles = {
       home: '工作台', calendar: '日历', accounts: '账本',
       shopping: '我的购物', reports: '报表',
+      'report-detail': '明细',
       categories: '分类管理', platforms: '购物平台',
       payments: '支付方式', settings: '设置'
     };
-    document.getElementById('page-title').textContent = titles[this.current] || '富婆的财富日记';
+    let title = titles[this.current];
+    if (this.current === 'report-detail' && this.reportDrill) {
+      const d = this.reportDrill;
+      let n = '明细';
+      if (d.type === 'category') { const c = DB.getCategoryById(d.id); n = c ? c.name : '分类'; }
+      else if (d.type === 'platform') n = DB.getPlatformName(d.id);
+      else if (d.type === 'payment') n = DB.getPaymentMethodName(d.id);
+      title = `${n}明细`;
+    }
+    document.getElementById('page-title').textContent = title;
 
     let html = '';
     switch(this.current) {
@@ -977,6 +1138,7 @@ const Pages = {
       case 'accounts': html = this.accounts(); break;
       case 'shopping': html = this.shopping(); break;
       case 'reports': html = this.reports(); break;
+      case 'report-detail': html = this.reportDetail(); break;
       case 'categories': html = this.categories(); break;
       case 'platforms': html = this.platforms(); break;
       case 'payments': html = this.payments(); break;
@@ -985,9 +1147,10 @@ const Pages = {
     content.innerHTML = html;
     content.scrollTop = 0;
 
-    // 更新导航高亮
+    // 更新导航高亮（明细页属于报表，高亮报表导航）
+    const activePage = this.current === 'report-detail' ? 'reports' : this.current;
     document.querySelectorAll('.nav-item').forEach(item => {
-      item.classList.toggle('active', item.dataset.page === this.current);
+      item.classList.toggle('active', item.dataset.page === activePage);
     });
 
     // 显示/隐藏FAB

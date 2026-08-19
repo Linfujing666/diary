@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>永久使用指南 · 富婆的财富日记</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f7f4ed; color: #3a3a32; line-height: 1.8; font-size: 15px;
+    padding: env(safe-area-inset-top) 16px calc(40px + env(safe-area-inset-bottom));
+    max-width: 680px; margin: 0 auto;
+  }
+  .hero {
+    background: linear-gradient(135deg,#6b9a5a,#5a8a4a);
+    color:#fff; border-radius: 20px; padding: 28px 22px; margin: 16px 0 22px;
+    box-shadow: 0 4px 16px rgba(90,138,74,.25);
+  }
+  .hero h1 { font-size: 22px; margin-bottom: 8px; }
+  .hero p { font-size: 13px; opacity:.92; }
+  .toc {
+    background:#fffdf8; border:1px solid #e0d8c8; border-radius:16px;
+    padding:18px 20px; margin-bottom:22px;
+  }
+  .toc b { color:#3d6b34; }
+  .toc ol { margin-left:20px; font-size:14px; }
+  .toc a { color:#5a8a4a; text-decoration:none; font-weight:600; }
+  .step {
+    background:#fffdf8; border:1px solid #e0d8c8; border-radius:18px;
+    padding:22px 20px; margin-bottom:18px; box-shadow:0 1px 4px rgba(90,138,74,.08);
+  }
+  .step-num {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:32px; height:32px; border-radius:50%;
+    background:#5a8a4a; color:#fff; font-weight:700; font-size:16px; margin-bottom:10px;
+  }
+  .step h2 { font-size:18px; color:#3d6b34; margin-bottom:12px; }
+  .step h3 { font-size:15px; color:#3a3a32; margin:16px 0 8px; }
+  .tip {
+    background:#eef3e9; border-left:4px solid #5a8a4a;
+    border-radius:0 10px 10px 0; padding:10px 14px; font-size:13px; margin:12px 0;
+  }
+  .warn {
+    background:#fff3e0; border-left:4px solid #d4a25e;
+    border-radius:0 10px 10px 0; padding:10px 14px; font-size:13px; margin:12px 0;
+  }
+  .danger {
+    background:#fce4ec; border-left:4px solid #c47a6a;
+    border-radius:0 10px 10px 0; padding:10px 14px; font-size:13px; margin:12px 0;
+  }
+  ol.list { margin-left:20px; }
+  ol.list li { margin-bottom:8px; }
+  code {
+    background:#eef3e9; color:#3d6b34; padding:2px 8px; border-radius:6px;
+    font-size:13px; font-family:Menlo,Consolas,monospace; word-break:break-all;
+  }
+  .btn-look {
+    display:inline-block; background:#5a8a4a; color:#fff; padding:2px 10px;
+    border-radius:8px; font-size:13px; font-weight:600;
+  }
+  .flow {
+    display:flex; flex-direction:column; gap:8px; margin:14px 0;
+  }
+  .flow-item {
+    display:flex; align-items:center; gap:10px; background:#eef3e9;
+    border-radius:12px; padding:10px 14px; font-size:13px;
+  }
+  .flow-item .fi-icon { font-size:18px; }
+  .arrow { text-align:center; color:#8ba888; font-size:16px; line-height:1; margin:-4px 0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:13px; }
+  th,td { border:1px solid #e0d8c8; padding:8px 10px; text-align:left; }
+  th { background:#eef3e9; color:#3d6b34; }
+  .faq { margin-top:6px; }
+  .faq details {
+    background:#fffdf8; border:1px solid #e0d8c8; border-radius:12px;
+    padding:12px 16px; margin-bottom:10px;
+  }
+  .faq summary { font-weight:600; color:#3d6b34; cursor:pointer; font-size:14px; }
+  .faq .ans { margin-top:8px; font-size:13px; color:#6b6b5e; }
+  .footer { text-align:center; font-size:12px; color:#9a9a8c; padding:10px 0 30px; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🌿 永久使用指南</h1>
+  <p>富婆的财富日记 · 变成桌面 App + 数据永久保存<br>全程免费 · 大约 30 分钟搞定 · 只需做一次</p>
+</div>
+
+<div class="toc">
+  <b>📋 目录（共 5 步）</b>
+  <ol>
+    <li><a href="#s1">注册 GitHub 账号（5 分钟）</a></li>
+    <li><a href="#s2">上传 App 文件，开启免费托管（10 分钟）</a></li>
+    <li><a href="#s3">手机上安装成桌面 App（2 分钟）</a></li>
+    <li><a href="#s4">开启云同步，数据永久保存（5 分钟）</a></li>
+    <li><a href="#s5">换手机 / 数据丢失后怎么恢复（存好这页）</a></li>
+  </ol>
+</div>
+
+<!-- ==================== 步骤 1 ==================== -->
+<div class="step" id="s1">
+  <span class="step-num">1</span>
+  <h2>注册 GitHub 账号</h2>
+  <p>GitHub 是全球最大的代码托管平台（微软旗下），我们的 App 文件和记账数据都会免费存在这里，<b>永久、私有、不收费</b>。</p>
+
+  <h3>操作：</h3>
+  <ol class="list">
+    <li>电脑或手机浏览器打开 <code>github.com</code></li>
+    <li>点 <span class="btn-look">Sign up</span>，填邮箱、设置密码</li>
+    <li>邮箱收到验证码，输入验证</li>
+    <li>用户名随便起（比如 <code>fufuluojia123</code>），这个用户名后面会用到</li>
+  </ol>
+
+  <div class="tip">💡 <b>记住你的用户名和密码</b>，这是整套方案唯一的"钥匙"。建议把密码记在备忘录或密码管理器里。</div>
+</div>
+
+<!-- ==================== 步骤 2 ==================== -->
+<div class="step" id="s2">
+  <span class="step-num">2</span>
+  <h2>上传 App 文件，开启免费托管</h2>
+  <p>把「富婆的财富日记」的文件传到 GitHub，开启 GitHub Pages，就会得到一个<b>永久免费的网址</b>，比如：</p>
+  <p style="text-align:center;margin:10px 0;"><code>https://你的用户名.github.io/diary/</code></p>
+
+  <h3>2.1 创建仓库</h3>
+  <ol class="list">
+    <li>登录 GitHub，点右上角 <span class="btn-look">＋</span> → <b>New repository</b></li>
+    <li>Repository name 填：<code>diary</code>（就用这个名字，别的不用管）</li>
+    <li>选 <b>Public</b>（免费账户只有公开仓库能开 Pages）</li>
+    <li>勾选 <b>Add a README file</b></li>
+    <li>点绿色按钮 <span class="btn-look">Create repository</span></li>
+  </ol>
+
+  <h3>2.2 上传文件</h3>
+  <ol class="list">
+    <li>进入刚创建的 diary 仓库页面</li>
+    <li>点 <span class="btn-look">Add file</span> → <b>Upload files</b></li>
+    <li>把解压后的 App 文件<b>全部</b>（index.html、style.css、app.js、data.js、pages.js、mascot.js、sw.js、manifest.json、所有 png 图片）直接拖进网页</li>
+    <li>等进度条走完，点绿色 <span class="btn-look">Commit changes</span></li>
+  </ol>
+
+  <div class="warn">⚠️ <b>注意：</b>要上传的是解压 zip 后的<b>文件本身</b>，不是那个 zip 压缩包。文件比较多，分批拖也行，每次都要点 Commit changes 保存。</div>
+
+  <h3>2.3 开启 GitHub Pages（关键一步）</h3>
+  <ol class="list">
+    <li>仓库页面点 <span class="btn-look">Settings</span>（设置）</li>
+    <li>左侧菜单找 <b>Pages</b>（在 Code and automation 分组里）</li>
+    <li>「Build and deployment」下的 Source 选 <b>Deploy from a branch</b></li>
+    <li>Branch 选 <code>main</code>，文件夹选 <code>/ (root)</code>，点 <b>Save</b></li>
+    <li>等 1～3 分钟，刷新页面，顶部会出现绿色提示，显示你的网址</li>
+  </ol>
+
+  <div class="tip">💡 用手机浏览器打开这个网址测试一下，能看到记账界面就成功了！建议把这个网址收藏，或者发到微信"文件传输助手"里存着。</div>
+
+  <div class="warn">⚠️ <b>国内访问慢怎么办？</b>GitHub Pages 在国内偶尔加载慢。可以先忍忍（App 安装后有离线缓存，之后打开很快）；实在不行，以后可以迁移到 Cloudflare Pages（同样免费，国内更快），需要的时候再找人帮忙迁。</div>
+</div>
+
+<!-- ==================== 步骤 3 ==================== -->
+<div class="step" id="s3">
+  <span class="step-num">3</span>
+  <h2>手机上安装成桌面 App</h2>
+  <p>用手机浏览器打开你的网址，然后"添加到主屏幕"，它就会变成一个真正的桌面图标，全屏运行、没有浏览器地址栏，和普通 App 一模一样。</p>
+
+  <h3>📱 iPhone（Safari）</h3>
+  <ol class="list">
+    <li>用 <b>Safari</b> 打开你的网址（必须是 Safari，微信/Chrome 里不行）</li>
+    <li>点底部工具栏的 <b>分享按钮</b>（方框里有个向上箭头 ⬆️）</li>
+    <li>往下滑，找到并点 <b>「添加到主屏幕」</b></li>
+    <li>名称可以改成「财富日记」，点右上角 <b>「添加」</b></li>
+  </ol>
+
+  <h3>🤖 Android（Chrome / 系统浏览器）</h3>
+  <ol class="list">
+    <li>用 <b>Chrome</b> 打开你的网址</li>
+    <li>点右上角 <b>⋮</b>（三个点菜单）</li>
+    <li>点 <b>「添加到主屏幕」</b> 或 <b>「安装应用」</b></li>
+    <li>确认添加</li>
+  </ol>
+
+  <div class="tip">💡 安装后桌面会出现一个绿色小钱包🌿图标，点开就是全屏 App。以后记账都从这个图标进，<b>不要</b>再从浏览器进了（两边数据是分开的！）。</div>
+</div>
+
+<!-- ==================== 步骤 4 ==================== -->
+<div class="step" id="s4">
+  <span class="step-num">4</span>
+  <h2>开启云同步，数据永久保存</h2>
+  <p>装好 App 后，数据默认只存在这台手机里——手机丢了、App 删了、清了缓存，数据就没了。<b>开启云同步后</b>，每次记账都会自动备份到 GitHub，永久保存。</p>
+
+  <h3>4.1 生成 GitHub Token（云同步的钥匙）</h3>
+  <ol class="list">
+    <li>电脑浏览器登录 GitHub，点右上角头像 → <span class="btn-look">Settings</span></li>
+    <li>左侧最底部 <b>Developer settings</b></li>
+    <li><b>Personal access tokens</b> → <b>Tokens (classic)</b> → <span class="btn-look">Generate new token (classic)</span></li>
+    <li>Note 随便填（如 <code>记账备份</code>）；Expiration 选 <b>No expiration</b>（永不过期）</li>
+    <li>权限列表里<b>只勾选</b> <code>gist</code> 这一项</li>
+    <li>点底部绿色 <span class="btn-look">Generate token</span></li>
+    <li><b>立刻复制</b>生成的 <code>ghp_</code> 开头的一长串字符（只显示这一次！）</li>
+  </ol>
+
+  <div class="danger">🚨 <b>三个坑，务必注意：</b><br>
+  ① 必须用 <b>classic</b> 版 Token（Fine-grained 那种不支持 Gist）<br>
+  ② 必须勾选 <b>gist</b> 权限，别的都不用勾<br>
+  ③ Token 生成后<b>马上复制保存</b>，关掉页面就再也看不到了</div>
+
+  <h3>4.2 在 App 里配置</h3>
+  <ol class="list">
+    <li>打开财富日记 App → 左侧导航 → <b>设置</b></li>
+    <li>点 <b>云同步</b>（☁️ 那一项）</li>
+    <li>Token 栏粘贴刚才的 <code>ghp_...</code></li>
+    <li>勾选 <b>「开启自动同步」</b></li>
+    <li>点 <b>☁️ 立即上传（第一次备份）</b>，提示"已上传到云端"就成功了</li>
+  </ol>
+
+  <div class="tip">💡 开启后，每次记账（间隔 10 分钟以上）会自动上传。设置页会显示"上次同步时间"，可以随时确认。也建议每个月手动点一次「立即上传」图个安心。</div>
+
+  <div class="warn">⚠️ <b>Token 也要存好！</b>建议和 GitHub 密码放在一起（备忘录/密码管理器）。忘了也没关系——重新生成一个，在 App 里替换掉旧的就行，数据不受影响。</div>
+</div>
+
+<!-- ==================== 步骤 5 ==================== -->
+<div class="step" id="s5">
+  <span class="step-num">5</span>
+  <h2>换手机 / 数据丢失后怎么恢复</h2>
+  <p>只要 GitHub 账号和 Token 还在，一切都能找回来。整件事的原理：</p>
+
+  <div class="flow">
+    <div class="flow-item"><span class="fi-icon">☁️</span>数据备份存在 GitHub Gist（永久）</div>
+    <div class="arrow">⬇️</div>
+    <div class="flow-item"><span class="fi-icon">📱</span>新手机打开网址 → 装到桌面</div>
+    <div class="arrow">⬇️</div>
+    <div class="flow-item"><span class="fi-icon">⚙️</span>设置 → 云同步 → 填 Token</div>
+    <div class="arrow">⬇️</div>
+    <div class="flow-item"><span class="fi-icon">📥</span>点「从云端恢复」→ 自动找回全部数据</div>
+  </div>
+
+  <h3>详细步骤：</h3>
+  <ol class="list">
+    <li>新手机浏览器（iPhone 用 Safari / Android 用 Chrome）打开你的 GitHub Pages 网址</li>
+    <li>按<b>第 3 步</b>的方法添加到桌面</li>
+    <li>打开 App → 设置 → 云同步</li>
+    <li>Token 栏填<b>原来的</b>那个 <code>ghp_...</code>（Gist ID 留空不用管）</li>
+    <li>点 <b>📥 从云端恢复（旧手机迁移）</b></li>
+    <li>App 会自动在云端找到你的备份，提示"已从云端恢复"，所有账目、分类、购物记录全都回来了</li>
+    <li>记得重新勾选<b>自动同步</b></li>
+  </ol>
+
+  <div class="tip">💡 这套流程同样适用于：手机掉了、误删 App、清了浏览器数据、App 出问题想重来——只要 GitHub 里的备份在，就什么都不怕。</div>
+</div>
+
+<!-- ==================== FAQ ==================== -->
+<div class="step faq">
+  <h2>❓ 常见问题</h2>
+
+  <details>
+    <summary>数据到底存在哪？安全吗？会被别人看到吗？</summary>
+    <div class="ans">三份拷贝：① 手机本地（日常秒开）② GitHub Gist 云端备份（私有，只有持有你 Token 的人能看，不输入 Token 连你自己都看不到）③ GitHub Pages 上的只是 App 程序文件，不含你的数据。GitHub 是微软旗下、全球最大代码平台，可靠性远超任何网盘。</div>
+  </details>
+
+  <details>
+    <summary>GitHub 免费吗？会不会哪天收费/倒闭？</summary>
+    <div class="ans">GitHub Pages 和 Gist 对个人免费且无容量焦虑（记账数据每年才几百 KB）。GitHub 成立于 2008 年，2018 年被微软收购，是行业基础设施级的存在。真有万一，你的数据也能随时导出 JSON 文件带走（设置 → 导出数据）。</div>
+  </details>
+
+  <details>
+    <summary>为什么必须上传到 GitHub，不能直接用文件夹里的 index.html？</summary>
+    <div class="ans">PWA（桌面 App + 离线缓存）要求网页通过 HTTPS 网址访问，直接打开本地文件这些功能全部失效。GitHub Pages 提供的就是免费 HTTPS 网址。</div>
+  </details>
+
+  <details>
+    <summary>以后 App 更新了怎么办？</summary>
+    <div class="ans">把新文件按第 2.2 步的方法拖进 GitHub 仓库（会提示覆盖，确认即可），手机上关掉 App 重开，1～2 秒后自动更新到新版。</div>
+  </details>
+
+  <details>
+    <summary>换了手机，但 GitHub 密码也忘了？</summary>
+    <div class="ans">先去 github.com 用注册邮箱找回密码（点 Sign in → Forgot password）。密码找回来，一切都能救。所以：注册邮箱必须是自己常用、不会丢的邮箱。</div>
+  </details>
+
+  <details>
+    <summary>能多台设备同时用吗？</summary>
+    <div class="ans">可以，每台都按第 5 步配置云同步。但注意：云同步以"最后一次上传"为准，建议只在主力手机上开自动同步，其他设备手动点「从云端恢复」再操作，避免互相覆盖。</div>
+  </details>
+</div>
+
+<div class="footer">🌿 富婆的财富日记 · 永久使用指南<br>建议把本页添加到收藏夹，或截图保存第 5 步</div>
+
+</body>
+</html>

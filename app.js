@@ -62,29 +62,12 @@ const App = {
       }
     });
 
-    // 窗口大小变化时重置 sidebar 状态
+    // 窗口大小变化时重置 sidebar 状态（跨断点切换时清理抽屉/常驻状态）
     let resizeTimer = null;
     window.addEventListener('resize', () => {
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        this.updateMenuIcon();
-        // 跨断点切换时重置 sidebar/app 状态
-        if (window.innerWidth >= 768) {
-          // 切到宽屏：根据 collapsed 状态决定
-          const sidebar = document.getElementById('sidebar');
-          const app = document.getElementById('app');
-          app.classList.remove('expanded');
-          if (localStorage.getItem('sidebar-collapsed') === '1') {
-            sidebar.classList.add('collapsed');
-            sidebar.classList.remove('expanded');
-          } else {
-            sidebar.classList.remove('collapsed');
-            sidebar.classList.remove('expanded');
-          }
-        } else {
-          // 切到窄屏：根据 collapsed 状态映射到 expanded
-          this.restoreSidebarState();
-        }
+        this.restoreSidebarState();
       }, 200);
     });
   },
@@ -93,30 +76,23 @@ const App = {
     document.getElementById('sidebar-mascot').innerHTML = Mascot.getSVG('mini');
   },
 
-  // 恢复 sidebar 宽窄状态（所有屏幕通用）
+  // 恢复 sidebar 状态：
+  // - 窄屏（<768）：抽屉默认关闭
+  // - 宽屏（>=768）：根据偏好恢复常驻导航的展开/收起
   restoreSidebarState() {
-    const isNarrow = window.innerWidth < 768;
-    // 默认值：未存储时
-    //   - 窄屏：默认收起（仅显示图标列）
-    //   - 宽屏：默认展开（完整 200px）
-    const stored = localStorage.getItem('sidebar-collapsed');
-    const collapsed = stored === null ? isNarrow : stored === '1';
     const sidebar = document.getElementById('sidebar');
-    const app = document.getElementById('app');
-    if (collapsed) {
-      sidebar.classList.add('collapsed');
-      sidebar.classList.remove('expanded');
-      app.classList.remove('expanded');
+    const overlay = document.getElementById('overlay');
+    // 清理旧版可能残留的 expanded 状态
+    sidebar.classList.remove('expanded');
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+    if (window.innerWidth >= 768) {
+      // 宽屏：恢复常驻导航宽窄偏好
+      const collapsed = localStorage.getItem('sidebar-collapsed') === '1';
+      sidebar.classList.toggle('collapsed', collapsed);
     } else {
+      // 窄屏：抽屉模式，collapsed 状态不生效
       sidebar.classList.remove('collapsed');
-      if (isNarrow) {
-        // 窄屏下"未收起"= expanded 状态
-        sidebar.classList.add('expanded');
-        app.classList.add('expanded');
-      } else {
-        sidebar.classList.remove('expanded');
-        app.classList.remove('expanded');
-      }
     }
     this.updateMenuIcon();
   },
@@ -143,25 +119,15 @@ const App = {
   // 侧边栏切换
   toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
-    const app = document.getElementById('app');
     if (window.innerWidth < 768) {
-      // 窄屏：在收起(60px)与展开(200px)之间切换，主内容跟随
-      const isExpanded = sidebar.classList.contains('expanded');
-      if (isExpanded) {
-        sidebar.classList.remove('expanded');
-        app.classList.remove('expanded');
-        localStorage.setItem('sidebar-collapsed', '1');
-      } else {
-        sidebar.classList.add('expanded');
-        app.classList.add('expanded');
-        localStorage.setItem('sidebar-collapsed', '0');
-      }
+      // 窄屏：抽屉式开/关（覆盖主内容，带遮罩）
+      const willOpen = !sidebar.classList.contains('open');
+      sidebar.classList.toggle('open', willOpen);
+      document.getElementById('overlay').classList.toggle('show', willOpen);
     } else {
-      // 宽屏：切换宽窄（展开/收起图标列）
+      // 宽屏：切换常驻宽窄（展开/收起图标列）
       sidebar.classList.toggle('collapsed');
-      const isCollapsed = sidebar.classList.contains('collapsed');
-      // 记住偏好
-      localStorage.setItem('sidebar-collapsed', isCollapsed ? '1' : '0');
+      localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
     }
     this.updateMenuIcon();
   },
@@ -172,9 +138,8 @@ const App = {
     const icon = document.getElementById('menu-icon');
     if (!icon) return;
     if (window.innerWidth < 768) {
-      // 窄屏：展开状态显示「◂」(收起箭头)，收起状态显示「☰」(展开箭头)
-      const isExpanded = sidebar.classList.contains('expanded');
-      icon.textContent = isExpanded ? '◂' : '☰';
+      // 窄屏：抽屉打开显示 ✕（可关闭），关闭显示 ☰
+      icon.textContent = sidebar.classList.contains('open') ? '✕' : '☰';
     } else {
       const isCollapsed = sidebar.classList.contains('collapsed');
       icon.textContent = isCollapsed ? '☰' : '◂';
@@ -183,18 +148,13 @@ const App = {
 
   closeSidebar() {
     const sidebar = document.getElementById('sidebar');
-    const app = document.getElementById('app');
+    const overlay = document.getElementById('overlay');
     if (window.innerWidth < 768) {
-      // 窄屏：选择导航项后收起成图标列（保留 collapsed 状态）
-      sidebar.classList.remove('expanded');
-      app.classList.remove('expanded');
-      sidebar.classList.add('collapsed');
-      localStorage.setItem('sidebar-collapsed', '1');
-    } else {
-      // 宽屏：清掉 collapsed 状态，恢复完整导航
-      sidebar.classList.remove('collapsed');
-      localStorage.setItem('sidebar-collapsed', '0');
+      // 窄屏：关闭抽屉 + 隐藏遮罩
+      sidebar.classList.remove('open');
+      overlay.classList.remove('show');
     }
+    // 宽屏：常驻导航保持当前状态不变
     this.updateMenuIcon();
   },
 
