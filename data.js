@@ -239,38 +239,74 @@ const DB = {
     // 动态加载 SheetJS (xlsx) 解析库
     return this._loadXLSX().then(XLSX => {
       const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
-      const result = { imported: 0, skipped: 0, categoriesAdded: [], details: [] };
+      const result = { imported: 0, skipped: 0, categoriesAdded: [], details: [], diagnostics: null };
+
+      // 收集诊断信息：实际 sheet 名 + 第一个 sheet 的列名
+      result.diagnostics = {
+        sheetNames: wb.SheetNames,
+        firstSheetHeader: null,
+      };
+      if (wb.SheetNames.length > 0) {
+        const firstSheet = wb.Sheets[wb.SheetNames[0]];
+        const firstRows = XLSX.utils.sheet_to_json(firstSheet, { defval: '', header: 1, range: 1 });
+        if (firstRows.length > 0) {
+          // 取表头（第一行）的所有列名
+          const headerRow = XLSX.utils.sheet_to_json(firstSheet, { defval: '', header: 1 })[0];
+          result.diagnostics.firstSheetHeader = headerRow ? headerRow.filter(h => h).slice(0, 12) : [];
+        }
+      }
 
       // 分类名 → ID 映射缓存
       const expenseCatMap = this._buildCategoryMap('expense');
       const incomeCatMap = this._buildCategoryMap('income');
 
-      // 支出 Sheet
-      if (wb.SheetNames.includes('支出')) {
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets['支出'], { defval: '' });
+      // 兼容多种 sheet 名（小青账不同版本可能是中文/英文/带空格）
+      const findSheet = (names) => {
+        for (const n of names) {
+          const found = wb.SheetNames.find(s => {
+            const sl = s.toLowerCase().trim();
+            const nl = n.toLowerCase().trim();
+            return sl === nl || sl.includes(nl) || nl.includes(sl);
+          });
+          if (found) return wb.Sheets[found];
+        }
+        return null;
+      };
+
+      // 找到三个 sheet
+      const expenseSheet = findSheet(['支出', 'expense', 'spending', '支']);
+      const incomeSheet = findSheet(['收入', 'income', 'revenue', '收']);
+      const transferSheet = findSheet(['转账', 'transfer', '转']);
+
+      if (expenseSheet) {
+        const rows = XLSX.utils.sheet_to_json(expenseSheet, { defval: '' });
         rows.forEach(r => {
           const acc = this._parseXQZRow(r, 'expense', expenseCatMap, result);
           if (acc) { this.data.accounts.push(acc); result.imported++; }
           else result.skipped++;
         });
       }
-      // 收入 Sheet
-      if (wb.SheetNames.includes('收入')) {
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets['收入'], { defval: '' });
+      if (incomeSheet) {
+        const rows = XLSX.utils.sheet_to_json(incomeSheet, { defval: '' });
         rows.forEach(r => {
           const acc = this._parseXQZRow(r, 'income', incomeCatMap, result);
           if (acc) { this.data.accounts.push(acc); result.imported++; }
           else result.skipped++;
         });
       }
-      // 转账 Sheet
-      if (wb.SheetNames.includes('转账')) {
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets['转账'], { defval: '' });
+      if (transferSheet) {
+        const rows = XLSX.utils.sheet_to_json(transferSheet, { defval: '' });
         rows.forEach(r => {
           const acc = this._parseXQZTransferRow(r, result);
           if (acc) { this.data.accounts.push(acc); result.imported++; }
           else result.skipped++;
         });
+      }
+
+      // 如果三个 sheet 一个都没匹配到，诊断里给出明确提示
+      if (!expenseSheet && !incomeSheet && !transferSheet) {
+        result.diagnostics.noMatchingSheet = true;
+        result.diagnostics.expectedSheets = ['支出', '收入', '转账'];
       }
 
       this.save();
@@ -287,17 +323,24 @@ const DB = {
   },
 
   // 解析小青账支出/收入行
+  // 字段名做了兼容：小青账不同版本列名可能略有不同
   _parseXQZRow(row, type, catMap, result) {
-    const date = this._parseXQZDate(row['时间']);
-    const amount = parseFloat(row['金额']);
+    // 兼容"时间/日期/记账时间/记账日期"
+    const date = this._parseXQZDate(row['时间'] || row['日期'] || row['记账时间'] || row['记账日期'] || row['Date'] || row['date']);
+    // 兼容"金额/支出金额/收入金额"
+    const amount = parseFloat(row['金额'] || row['支出金额'] || row['收入金额'] || row['Amount'] || row['amount'] || 0);
     if (!date || !amount || amount <= 0) return null;
 
     const typeName = type === 'expense' ? '支出' : '收入';
-    const bigCat = String(row['大类'] || '').trim();
-    const smallCat = String(row['小类'] || '').trim();
-    const account = String(row['账户'] || '').trim();
-    const note = String(row['备注'] || '').trim();
-    const source = String(row['来源'] || '').trim();
+    // 兼容"大类/分类/一级分类/类别"
+    const bigCat = String(row['大类'] || row['分类'] || row['一级分类'] || row['类别'] || row['Category'] || '').trim();
+    // 兼容"小类/子分类/二级分类"
+    const smallCat = String(row['小类'] || row['子分类'] || row['二级分类'] || row['Subcategory'] || '').trim();
+    // 兼容"账户/支付方式/账户名称"
+    const account = String(row['账户'] || row['支付方式'] || row['账户名称'] || row['Account'] || '').trim();
+    // 兼容"备注/说明/remark"
+    const note = String(row['备注'] || row['说明'] || row['remark'] || row['Remark'] || '').trim();
+    const source = String(row['来源'] || row['Source'] || '').trim();
 
     // 分类映射
     let categoryId = '';
@@ -336,13 +379,13 @@ const DB = {
 
   // 解析小青账转账行
   _parseXQZTransferRow(row, result) {
-    const date = this._parseXQZDate(row['时间']);
-    const amount = parseFloat(row['转出金额']);
+    const date = this._parseXQZDate(row['时间'] || row['日期'] || row['记账时间'] || row['Date'] || row['date']);
+    const amount = parseFloat(row['转出金额'] || row['金额'] || row['Amount'] || row['amount'] || 0);
     if (!date || !amount || amount <= 0) return null;
 
-    const outAccount = String(row['转出账户'] || '').trim();
-    const inAccount = String(row['转入账户'] || '').trim();
-    const note = String(row['备注'] || '').trim();
+    const outAccount = String(row['转出账户'] || row['转出'] || row['转出账户名称'] || row['From Account'] || '').trim();
+    const inAccount = String(row['转入账户'] || row['转入'] || row['转入账户名称'] || row['To Account'] || '').trim();
+    const note = String(row['备注'] || row['说明'] || row['remark'] || '').trim();
 
     return {
       id: this.genId('acc'),

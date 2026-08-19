@@ -1220,21 +1220,27 @@ const App = {
   },
 
   _showXQZResult(result, filename) {
+    const isFailure = result.imported === 0;
+    const title = isFailure ? '⚠️ 导入未识别到数据' : '✅ 导入完成';
+    const mascotMood = isFailure ? 'sad' : 'happy';
+    const headline = isFailure ? '文件读到了，但没匹配到账目' : '好耶！数据迁移成功';
+    const headlineColor = isFailure ? 'var(--warn-color)' : 'var(--forest-green)';
+
     const html = `
       <div class="modal-overlay" onclick="if(event.target===this)App.closeModal()">
         <div class="modal-sheet">
           <div class="modal-header">
-            <div class="modal-title">✅ 导入完成</div>
+            <div class="modal-title">${title}</div>
             <button class="modal-close" onclick="App.closeModal()">×</button>
           </div>
           <div style="text-align:center;padding:20px 10px;">
-            ${Mascot.render('happy', 80)}
-            <div style="font-size:16px;font-weight:600;color:var(--forest-green);margin-top:12px;">好耶！数据迁移成功</div>
+            ${Mascot.render(mascotMood, 80)}
+            <div style="font-size:16px;font-weight:600;color:${headlineColor};margin-top:12px;">${headline}</div>
           </div>
           <div style="background:var(--soft-green-bg);border-radius:12px;padding:16px;margin-bottom:14px;">
             <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
               <span style="color:var(--text-secondary);font-size:14px;">成功导入</span>
-              <span style="font-weight:700;color:var(--forest-green);font-size:16px;">${result.imported} 笔</span>
+              <span style="font-weight:700;color:${isFailure ? 'var(--warn-color)' : 'var(--forest-green)'};font-size:16px;">${result.imported} 笔</span>
             </div>
             ${result.skipped > 0 ? `
             <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
@@ -1249,11 +1255,27 @@ const App = {
               </div>
             </div>` : ''}
           </div>
+          ${isFailure && result.diagnostics ? `
+            <div style="background:#fff3e0;border-left:4px solid var(--warn-color);border-radius:0 12px 12px 0;padding:14px;margin-bottom:14px;font-size:12px;line-height:1.8;">
+              <div style="font-weight:600;color:var(--warn-color);margin-bottom:6px;">📋 诊断信息（请截图发给开发者）</div>
+              <div style="color:var(--text-secondary);">文件里的 Sheet 名：<code style="background:#fff;padding:2px 6px;border-radius:4px;">${(result.diagnostics.sheetNames || []).join(', ') || '（空）'}</code></div>
+              <div style="color:var(--text-secondary);margin-top:4px;">第一个 Sheet 的列名：<code style="background:#fff;padding:2px 6px;border-radius:4px;">${(result.diagnostics.firstSheetHeader || []).join(' | ') || '（空）'}</code></div>
+              ${result.diagnostics.noMatchingSheet ? `
+                <div style="color:var(--danger-color);margin-top:8px;">原因：文件里没有找到「支出/收入/转账」这三种 Sheet。</div>
+                <div style="color:var(--text-secondary);margin-top:4px;">建议：把这份 .xlsx 文件直接发给开发者，会针对你的小青账版本做适配。</div>
+              ` : `
+                <div style="color:var(--danger-color);margin-top:8px;">原因：找到了 Sheet 但每行的"时间"或"金额"字段解析失败。</div>
+                <div style="color:var(--text-secondary);margin-top:4px;">建议：可能是列名不一样，把诊断信息截图发给开发者即可定位。</div>
+              `}
+            </div>
+          ` : ''}
           <div style="font-size:12px;color:var(--text-light);text-align:center;margin-bottom:14px;">
             来源文件：${filename}
           </div>
           <div class="modal-actions">
-            <button class="btn btn-primary" onclick="App.closeModal();App.navigate('accounts');">查看账本</button>
+            ${isFailure
+              ? `<button class="btn btn-primary" onclick="App.closeModal()">知道了</button>`
+              : `<button class="btn btn-primary" onclick="App.closeModal();App.navigate('accounts');">查看账本</button>`}
           </div>
         </div>
       </div>
