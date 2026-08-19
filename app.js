@@ -26,8 +26,12 @@ const App = {
       this.restoreSidebarState();
       this.renderMascotSidebar();
       Pages.render();
-      // 启动时如果配置了云同步，静默拉取一次
-      if (DB.cloud.isConfigured()) {
+      // 启动时云同步策略：
+      // - 以前是直接 pull 覆盖本地，会导致"删除后又复活"的 bug
+      // - 现在改为：只有当本地数据真的丢了（restored 为 true）才从云端恢复
+      // - 本地正常时不主动 pull，避免用云端旧快照覆盖用户最新操作
+      // - 如果云端有更新，让用户通过「设置 → 云同步 → 从云端恢复」主动拉取
+      if (restored && DB.cloud.isConfigured()) {
         DB.cloud.pull().then(() => {
           Pages.render();
         }).catch(() => {});

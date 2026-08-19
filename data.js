@@ -96,15 +96,21 @@ const DB = {
     };
   },
 
-  save() {
+  save(forceCloudSync = false) {
     localStorage.setItem(this.STORE_KEY, JSON.stringify(this.data));
     // 同时写入 IndexedDB 作为二级备份（比 localStorage 更持久）
     this._saveToIndexedDB();
     // 记录最后备份时间
     localStorage.setItem('forest_ledger_last_save', Date.now().toString());
-    // 触发自动云同步（如果已配置且开启）
-    if (this.cloud && this.cloud.autoSync) {
-      setTimeout(() => { try { this.cloud.autoSync(); } catch(e) {} }, 3000);
+    // 触发云同步
+    if (this.cloud) {
+      if (forceCloudSync) {
+        // 破坏性操作（删除/重置）必须立即上传，绕过 10 分钟节流
+        // 否则会出现"删除后重启 App，云端旧快照又被 pull 回来"的 bug
+        setTimeout(() => { try { this.cloud.forceSync(); } catch(e) {} }, 1500);
+      } else if (this.cloud.autoSync) {
+        setTimeout(() => { try { this.cloud.autoSync(); } catch(e) {} }, 3000);
+      }
     }
   },
 
@@ -421,7 +427,7 @@ const DB = {
 
   reset() {
     this.data = JSON.parse(JSON.stringify(this.defaults));
-    this.save();
+    this.save(true); // 重置是破坏性操作，强制立即云同步，避免重启后被云端旧快照覆盖
   },
 
   // 生成ID
@@ -537,7 +543,7 @@ const DB = {
     const idx = this.data.accounts.findIndex(a => a.id === id);
     if (idx > -1) {
       this.data.accounts.splice(idx, 1);
-      this.save();
+      this.save(true); // 删除是破坏性操作，强制立即云同步
       return true;
     }
     return false;
@@ -592,7 +598,7 @@ const DB = {
     const idx = this.data.shopping.findIndex(s => s.id === id);
     if (idx > -1) {
       this.data.shopping.splice(idx, 1);
-      this.save();
+      this.save(true); // 删除是破坏性操作，强制立即云同步
       return true;
     }
     return false;
@@ -630,7 +636,7 @@ const DB = {
     return { item, account };
   },
 
-  // 退货
+  // 退货（破坏性操作：会删除关联账目）
   returnShopping(id) {
     const item = this.data.shopping.find(s => s.id === id);
     if (!item) return null;
@@ -641,7 +647,7 @@ const DB = {
       this.deleteAccount(item.linkedAccountId);
       item.linkedAccountId = '';
     }
-    this.save();
+    this.save(true); // 退货是破坏性操作，强制立即云同步
     return item;
   },
 
@@ -711,9 +717,9 @@ const DB = {
 
   deleteCategory(id) {
     let idx = this.data.expenseCategories.findIndex(c => c.id === id);
-    if (idx > -1) { this.data.expenseCategories.splice(idx, 1); this.save(); return true; }
+    if (idx > -1) { this.data.expenseCategories.splice(idx, 1); this.save(true); return true; }
     idx = this.data.incomeCategories.findIndex(c => c.id === id);
-    if (idx > -1) { this.data.incomeCategories.splice(idx, 1); this.save(); return true; }
+    if (idx > -1) { this.data.incomeCategories.splice(idx, 1); this.save(true); return true; }
     return false;
   },
 
@@ -730,7 +736,7 @@ const DB = {
     const cat = this.getCategoryById(catId);
     if (cat) {
       cat.subCategories = cat.subCategories.filter(s => s !== subName);
-      this.save();
+      this.save(true); // 删除子分类是破坏性操作，强制立即云同步
     }
     return cat;
   },
@@ -772,7 +778,7 @@ const DB = {
 
   deletePlatform(id) {
     const idx = this.data.platforms.findIndex(p => p.id === id);
-    if (idx > -1) { this.data.platforms.splice(idx, 1); this.save(); return true; }
+    if (idx > -1) { this.data.platforms.splice(idx, 1); this.save(true); return true; }
     return false;
   },
 
@@ -809,7 +815,7 @@ const DB = {
 
   deletePaymentMethod(id) {
     const idx = this.data.paymentMethods.findIndex(p => p.id === id);
-    if (idx > -1) { this.data.paymentMethods.splice(idx, 1); this.save(); return true; }
+    if (idx > -1) { this.data.paymentMethods.splice(idx, 1); this.save(true); return true; }
     return false;
   },
 
@@ -1117,7 +1123,9 @@ const DB = {
       return found.id;
     },
 
-    // 自动同步（每次记账后调用）
+    // 自动同步（记账/编辑后由 save() 调用）
+    // 注意：这里有 10 分钟节流，是为了避免高频操作频繁上传
+    // 但是删除操作等破坏性变更必须立即上传，否则会出现"删了重启又复活"的 bug
     async autoSync() {
       const c = this.getConfig();
       if (!c.autoSync || !c.token) return;
@@ -1127,6 +1135,18 @@ const DB = {
         await this.push();
       } catch(e) {
         console.log('[Cloud] 自动同步失败:', e.message);
+      }
+    },
+
+    // 强制立即同步（用于删除/编辑等破坏性操作）
+    // 绕过 10 分钟节流，确保云端马上拿到最新状态
+    async forceSync() {
+      const c = this.getConfig();
+      if (!c.autoSync || !c.token) return;
+      try {
+        await this.push();
+      } catch(e) {
+        console.log('[Cloud] 强制同步失败:', e.message);
       }
     },
   },

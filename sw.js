@@ -1,6 +1,6 @@
 // 富婆的财富日记 · Service Worker
 // 版本号变更时会自动清理旧缓存
-const VERSION = 'v1.4.1';
+const VERSION = 'v1.4.2';
 const CACHE_NAME = `ledger-${VERSION}`;
 
 // 关键资源 - 应用 shell
