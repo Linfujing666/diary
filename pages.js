@@ -332,10 +332,18 @@ const Pages = {
       else if (a.type === 'income') income += a.amount;
     });
 
+    const dayLabel = `${d.getMonth()+1}月${d.getDate()}日账单`;
     const html = `
-      <div class="card">
+      <div class="card calendar-day-card">
         <div class="day-detail-header">
-          <div class="day-detail-date">${d.getMonth()+1}月${d.getDate()}日 · 星期${weekdays[d.getDay()]}</div>
+          <div class="day-detail-date">
+            <div>${dayLabel}</div>
+            <div style="font-size:11px;color:var(--text-light);font-weight:500;margin-top:2px;">星期${weekdays[d.getDay()]} · ${accounts.length}笔</div>
+          </div>
+          <button class="calendar-add-btn" onclick="App.showAccountForm(null, '${dateStr}')" aria-label="为这一天记一笔">
+            <span style="font-size:16px;line-height:1;">+</span>
+            <span>记一笔</span>
+          </button>
         </div>
         <div class="day-detail-summary mb-16">
           <span>支出 <span class="expense">¥${DB.formatMoney(expense)}</span></span>
@@ -345,10 +353,7 @@ const Pages = {
       </div>
     `;
     document.getElementById('calendar-day-detail').innerHTML = html;
-    // 滚动到详情
-    setTimeout(() => {
-      document.getElementById('calendar-day-detail').scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+    // 用户要求：不要自动滚动。让用户自己决定。
   },
 
   changeMonth(delta) {

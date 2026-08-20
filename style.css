@@ -2127,6 +2127,38 @@ body.is-drill .main-content {
   /* 顶距给 page-title 让位置一致 */
   padding-top: 12px;
 }
+
+/* ============================================
+   日历页 · "记一笔" 按钮（小青账风格）
+   ============================================ */
+.calendar-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--forest-green);
+  color: #fff;
+  border: none;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(90,138,74,0.3);
+  transition: transform 0.15s, box-shadow 0.15s;
+  flex-shrink: 0;
+}
+.calendar-add-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 1px 3px rgba(90,138,74,0.35);
+}
+.calendar-day-card .day-detail-date {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.3;
+}
+.calendar-day-card .day-detail-summary {
+  margin-bottom: 12px;
+}
 .drill-close-btn {
   display: inline-flex;
   align-items: center;

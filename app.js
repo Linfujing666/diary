@@ -227,12 +227,12 @@ const App = {
   // ============================================
   // 账目表单（新增/编辑）
   // ============================================
-  showAccountForm(editId = null) {
+  showAccountForm(editId = null, prefillDate = null) {
     const isEdit = !!editId;
     const acc = isEdit ? DB.getAccount(editId) : {
-      type: 'expense', amount: '', date: DB.formatDate(new Date()),
+      type: 'expense', amount: '', date: prefillDate || DB.formatDate(new Date()),
       categoryId: '', subCategory: '', paymentMethod: '', platform: '',
-      product: '', note: '', payStatus: 'paid', payDate: DB.formatDate(new Date())
+      product: '', note: '', payStatus: 'paid', payDate: prefillDate || DB.formatDate(new Date())
     };
 
     const expenseCats = DB.getExpenseCategories();
