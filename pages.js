@@ -995,6 +995,8 @@ const Pages = {
       p.endStr = DB._addDays(p.endStr, delta * 7);
     } else if (p.kind === 'year') {
       p.y += delta;
+      p.startStr = `${p.y}-01-01`;
+      p.endStr = `${p.y}-12-31`;
     } else if (p.kind === 'custom') {
       p.startStr = DB._addDays(p.startStr, delta);
       p.endStr = DB._addDays(p.endStr, delta);
@@ -1005,7 +1007,7 @@ const Pages = {
   // 返回当前报表页面对应的"钻取周期"快照
   _currentDrillPeriod() {
     if (this.reportTab === 'month') return { kind: 'month', y: this.reportMonth.y, m: this.reportMonth.m };
-    if (this.reportTab === 'year')  return { kind: 'year', y: this.reportYear };
+    if (this.reportTab === 'year')  return { kind: 'year', y: this.reportYear, startStr: `${this.reportYear}-01-01`, endStr: `${this.reportYear}-12-31` };
     if (this.reportTab === 'week') {
       const today = DB.formatDate(new Date());
       const sow = DB._startOfWeek(today);
@@ -1087,7 +1089,7 @@ const Pages = {
     else periodExpense = DB.getRangeSummary(drill.startStr, drill.endStr).expense;
     const share = periodExpense > 0 ? (total / periodExpense * 100).toFixed(1) : '0';
     const avg = accounts.length ? total / accounts.length : 0;
-    const maxAmount = Math.max(...accounts.map(a => a.amount), 1);
+    const maxAmount = accounts.length ? Math.max(...accounts.map(a => a.amount)) : 0;
 
     // 按日期分组
     const groups = {};
