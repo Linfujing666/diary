@@ -1131,6 +1131,7 @@ const App = {
           <div style="background:#fff8e1;border-radius:12px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.8;">
             <strong style="color:var(--warn-color);">💡 小贴士</strong><br>
             · 模板里有示例行，导入前记得删除<br>
+            · 表格新增了「商品名称」列（可选）：填了会在账单里作主标题，比只显示分类更直观<br>
             · 模板的「填写说明」页列出了你现有的分类，照着填不会乱<br>
             · 从小青账导出的文件也兼容这个导入（列名一样）<br>
             · 导入是<strong>追加</strong>，不会覆盖现有账目

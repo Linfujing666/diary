@@ -1116,12 +1116,24 @@ const Pages = {
           </div>
           ${dayAccounts.map(a => {
             const barPct = Math.max((a.amount / maxAmount * 100).toFixed(0), 3);
+            // 主标题：商品名称 > 二级分类 > 分类名
+            const mainTitle = a.product || a.subCategory || drillName;
+            // 副标题：备注 / 支付方式 / 平台（如果 product 已作主标题，不再重复）
+            const subParts = [];
+            if (a.product && mainTitle !== a.product) subParts.push(a.product);
+            if (a.note) subParts.push(a.note);
+            const pmName = DB.getPaymentMethodName(a.paymentMethod);
+            if (pmName) subParts.push(pmName);
+            const plName = DB.getPlatformName(a.platform);
+            if (plName) subParts.push(plName);
+            if (a.payStatus === 'unpaid') subParts.push('待付款');
+            const subTitle = subParts.join(' · ');
             return `
               <div class="account-item" onclick="App.editAccount('${a.id}')">
                 <div class="account-icon" style="background:rgba(196,122,106,0.08)">${drillIcon}</div>
                 <div class="account-info">
-                  <div class="account-category">${a.subCategory || drillName}</div>
-                  ${a.note ? `<div class="account-note">${a.note}</div>` : ''}
+                  <div class="account-category">${mainTitle}</div>
+                  ${subTitle ? `<div class="account-note">${subTitle}</div>` : ''}
                   <div class="account-mini-bar"><div class="account-mini-bar-fill" style="width:${barPct}%;"></div></div>
                 </div>
                 <div class="account-amount expense">-¥${DB.formatMoney(a.amount)}</div>

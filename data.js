@@ -340,6 +340,8 @@ const DB = {
     const account = String(row['账户'] || row['支付方式'] || row['账户名称'] || row['Account'] || '').trim();
     // 兼容"备注/说明/remark"
     const note = String(row['备注'] || row['说明'] || row['remark'] || row['Remark'] || '').trim();
+    // 兼容"商品名称/商品"（可选，导入后作为账单主标题）
+    const product = String(row['商品名称'] || row['商品'] || row['product'] || row['Product'] || '').trim();
     const source = String(row['来源'] || row['Source'] || '').trim();
 
     // 跳过模板里的示例行（备注含"示例行"标记）
@@ -372,7 +374,7 @@ const DB = {
       subCategory,
       paymentMethod,
       platform: '',
-      product: '',
+      product: product,
       note: note || (account ? `[小青账] ${account}` : '[小青账导入]'),
       source: '小青账导入',
       payStatus: 'paid',
@@ -484,22 +486,22 @@ const DB = {
       const wb = XLSX.utils.book_new();
 
       // ---- 支出 Sheet ----
-      const expenseHeader = ['时间', '账户', '大类', '小类', '金额', '备注'];
+      const expenseHeader = ['时间', '账户', '大类', '小类', '金额', '商品名称', '备注'];
       const expenseExample = [
-        ['2026-08-19', '微信', '餐饮', '午餐', '25.5', '（示例行，导入前请删除）'],
-        ['2026-08-19', '支付宝', '购物', '衣服', '199', '（示例行，导入前请删除）'],
+        ['2026-08-19', '微信', '餐饮', '午餐', '25.5', '肯德基套餐', '（示例行，导入前请删除）'],
+        ['2026-08-19', '支付宝', '购物', '衣服', '199', '秋季连衣裙', '（示例行，导入前请删除）'],
       ];
       const ws1 = XLSX.utils.aoa_to_sheet([expenseHeader, ...expenseExample]);
       // 设置列宽，方便手机上查看
-      ws1['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 24 }];
+      ws1['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 16 }, { wch: 24 }];
       XLSX.utils.book_append_sheet(wb, ws1, '支出');
 
       // ---- 收入 Sheet ----
       const incomeExample = [
-        ['2026-08-19', '银行卡', '工资', '月薪', '8000', '（示例行，导入前请删除）'],
+        ['2026-08-19', '银行卡', '工资', '月薪', '8000', '8月工资', '（示例行，导入前请删除）'],
       ];
       const ws2 = XLSX.utils.aoa_to_sheet([expenseHeader, ...incomeExample]);
-      ws2['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 24 }];
+      ws2['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 16 }, { wch: 24 }];
       XLSX.utils.book_append_sheet(wb, ws2, '收入');
 
       // ---- 转账 Sheet ----
@@ -529,8 +531,9 @@ const DB = {
         ['4. 账户可填：微信 / 支付宝 / 花呗 / 京东白条 / 信用卡 / 现金 / 银行卡'],
         ['   （其他写法也行，只是不会自动关联支付方式）'],
         ['5. 大类/小类：可参考下方你现有的分类对照表；没匹配上的会自动新建分类'],
-        ['6. 转账 Sheet 只需填：时间、转出账户、转入账户、转出金额、备注'],
-        ['7. 示例行（写着"导入前请删除"的行）记得删掉再导入'],
+        ['6. 商品名称：可选；填你买的具体东西（如"星星项链"），导入后在账单里会作为这笔的主标题，比只显示分类更直观'],
+        ['7. 转账 Sheet 只需填：时间、转出账户、转入账户、转出金额、备注'],
+        ['8. 示例行（写着"导入前请删除"的行）记得删掉再导入'],
         [''],
         ['【你现在的支出分类（大类）】'],
         [expenseCatNames || '（暂无）'],
