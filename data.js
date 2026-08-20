@@ -375,8 +375,8 @@ const DB = {
       paymentMethod,
       platform: '',
       product: product,
-      note: note || (account ? `[小青账] ${account}` : '[小青账导入]'),
-      source: '小青账导入',
+      note: note,
+      source: source || '模板导入',
       payStatus: 'paid',
       payDate: date,
     };

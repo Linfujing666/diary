@@ -1,7 +1,7 @@
 // 富婆的财富日记 · Service Worker
 // 版本号变更时会自动清理旧缓存
 // 每次发版务必改 VERSION 字符串，否则老用户拿不到新代码
-const VERSION = 'v1.6.2';
+const VERSION = 'v1.6.4';
 const CACHE_NAME = `ledger-${VERSION}`;
 
 // 关键资源 - 应用 shell
@@ -68,7 +68,7 @@ self.addEventListener('fetch', (event) => {
       req.destination === 'script' ||
       req.destination === 'style') {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' })
         .then(res => {
           const clone = res.clone();
           caches.open(CACHE_NAME).then(c => c.put(req, clone));
