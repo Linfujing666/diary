@@ -1091,6 +1091,182 @@ const DB = {
     return result;
   },
 
+  // ============================================
+  // 日期工具（字符串运算，避免时区漂移）
+  // ============================================
+  _addDays(dateStr, n) {
+    if (!dateStr) return dateStr;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + n);
+    return this.formatDate(dt);
+  },
+
+  // 周一为一周首日（国内习惯）
+  _startOfWeek(dateStr) {
+    if (!dateStr) return dateStr;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    // getDay: 0=Sun, 1=Mon, ..., 6=Sat → 周一为 1，周日回退 6 天
+    const dow = dt.getDay();
+    const diff = dow === 0 ? -6 : 1 - dow;
+    dt.setDate(dt.getDate() + diff);
+    return this.formatDate(dt);
+  },
+
+  _daysBetween(aStr, bStr) {
+    const [y1, m1, d1] = aStr.split('-').map(Number);
+    const [y2, m2, d2] = bStr.split('-').map(Number);
+    const t1 = new Date(y1, m1 - 1, d1).getTime();
+    const t2 = new Date(y2, m2 - 1, d2).getTime();
+    return Math.round((t2 - t1) / 86400000);
+  },
+
+  _ymdCompact(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  },
+
+  // 取一个区间内的所有账目（按日期字符串字符串比较 — 日期格式固定 YYYY-MM-DD）
+  _accountsInRange(startStr, endStr) {
+    return this.data.accounts.filter(a => a.date && a.date >= startStr && a.date <= endStr);
+  },
+
+  // ============================================
+  // 周 / 年 / 自定义范围 聚合（与 getMonthSummary 结构一致）
+  // ============================================
+
+  // 单周汇总（按"自然周"：周一为周一，周日为周日）
+  // weekIdx：0=本周（相对今天所在周），-1=上一周，正数=未来，负数=过去
+  getWeekSummary(weekIdx = 0) {
+    const today = this.formatDate(new Date());
+    const sow = this._startOfWeek(today);
+    const target = this._addDays(sow, weekIdx * 7);
+    const startStr = this._startOfWeek(target);
+    const endStr = this._addDays(startStr, 6);
+    return this._summaryForRange(startStr, endStr);
+  },
+
+  // 周趋势（最近 N 周）
+  getWeekTrends(weeks = 8) {
+    const result = [];
+    const today = this.formatDate(new Date());
+    const sow = this._startOfWeek(today);
+    for (let i = weeks - 1; i >= 0; i--) {
+      const startStr = this._addDays(sow, -i * 7);
+      const endStr = this._addDays(startStr, 6);
+      const s = this._summaryForRange(startStr, endStr);
+      const d1 = new Date(startStr.split('-').map(Number));
+      const d2 = new Date(endStr.split('-').map(Number));
+      const label = `${d1.getMonth()+1}/${d1.getDate()}-${d2.getMonth()+1}/${d2.getDate()}`;
+      result.push({
+        startStr, endStr,
+        label,
+        income: s.income,
+        expense: s.expense,
+        balance: s.balance,
+        count: s.count
+      });
+    }
+    return result;
+  },
+
+  // 年度汇总
+  getYearSummary(year) {
+    y = year || new Date().getFullYear();
+    const startStr = `${y}-01-01`;
+    const endStr = `${y}-12-31`;
+    return this._summaryForRange(startStr, endStr);
+  },
+
+  // 12 个月趋势
+  getYearMonthly(year) {
+    y = year || new Date().getFullYear();
+    const result = [];
+    for (let m = 1; m <= 12; m++) {
+      const summary = this.getMonthSummary(y, m);
+      result.push({
+        year: y,
+        month: m,
+        label: `${m}月`,
+        income: summary.income,
+        expense: summary.expense,
+        balance: summary.balance,
+        count: summary.count
+      });
+    }
+    return result;
+  },
+
+  // 自定义区间汇总
+  getRangeSummary(startStr, endStr) {
+    return this._summaryForRange(startStr, endStr);
+  },
+
+  // 区间内分类 / 平台 / 支付方式 分解（图表用）
+  getRangeExpenseByCategory(startStr, endStr) {
+    const accounts = this._accountsInRange(startStr, endStr).filter(a => a.type === 'expense');
+    return this._groupByField(accounts, 'categoryId', 'categoryName');
+  },
+
+  getRangeExpenseByPlatform(startStr, endStr) {
+    const accounts = this._accountsInRange(startStr, endStr).filter(a => a.type === 'expense' && a.platform);
+    return this._groupByField(accounts, 'platform', 'platformName', DB.getPlatformColor);
+  },
+
+  getRangeExpenseByPayment(startStr, endStr) {
+    const accounts = this._accountsInRange(startStr, endStr).filter(a => a.type === 'expense' && a.paymentMethod);
+    return this._groupByField(accounts, 'paymentMethod', 'paymentName');
+  },
+
+  // 区间内账目（raw）
+  getRangeAccounts(startStr, endStr) {
+    return this._accountsInRange(startStr, endStr).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  },
+
+  // 内部：通用区间汇总
+  _summaryForRange(startStr, endStr) {
+    const accounts = this._accountsInRange(startStr, endStr);
+    let income = 0, expense = 0, count = 0;
+    accounts.forEach(a => {
+      if (a.type === 'income') income += a.amount;
+      else if (a.type === 'expense') { expense += a.amount; count++; }
+    });
+    return { income, expense, balance: income - expense, count };
+  },
+
+  // 内部：通用按字段聚合
+  _groupByField(accounts, idField, nameField, colorFn) {
+    const map = {};
+    accounts.forEach(a => {
+      const key = a[idField];
+      if (!key) return;
+      if (!map[key]) {
+        map[key] = { amount: 0, [idField]: key, [nameField]: '', __color: null };
+      }
+      map[key].amount += a.amount;
+    });
+    // 名称/图标/颜色 回填
+    Object.keys(map).forEach(k => {
+      const item = map[k];
+      if (idField === 'categoryId') {
+        item[nameField] = this.getCategoryName(item.categoryId);
+        item.icon = this.getCategoryIcon(item.categoryId);
+      } else if (idField === 'platform') {
+        // 给 payment 用 old alias 让下钻代码统一
+        item[nameField] = this.getPlatformName(item.platform);
+        item.icon = this.getPlatformIcon(item.platform);
+        item.color = this.getPlatformColor(item.platform);
+      } else if (idField === 'paymentMethod') {
+        item[nameField] = this.getPaymentMethodName(item.paymentMethod);
+        item.icon = this.getPaymentMethodIcon(item.paymentMethod);
+      }
+      if (colorFn) item.__color = colorFn.call(this, item[idField]);
+    });
+    return Object.values(map)
+      .sort((x, y) => y.amount - x.amount);
+  },
+
   // 待付款总额（先用后付）
   getUnpaidTotal() {
     let total = 0;

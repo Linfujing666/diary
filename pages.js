@@ -8,7 +8,14 @@ const Pages = {
   accountsFilter: { type: '', category: '' },
   shoppingTab: 'all',
   reportMonth: { y: new Date().getFullYear(), m: new Date().getMonth() + 1 },
-  reportDrill: null, // { y, m, type: 'category'|'platform'|'payment', id }
+  reportDrill: null, // { y, m, type: 'category'|'platform'|'payment', id } 兼容旧字段
+
+  // ===== 新增：周/月/年/自定义维度状态 =====
+  reportTab: 'month',                 // 'month' | 'week' | 'year' | 'custom'
+  reportView: 'report',               // 'report' | 'calendar' （cr 页内子视图）
+  reportYear: new Date().getFullYear(),
+  reportWeekOffset: 0,                // 0=本周（相对今天）
+  customRange: { startStr: '', endStr: '' },
 
   // 紧凑金额：日历格子等窄空间显示（12345.6 → 1.2万；999 → 原样）
   compactMoney(v) {
@@ -550,62 +557,229 @@ const Pages = {
   },
 
   // ============================================
-  // 报表
+  // 报表 + 日历 合一页（cr）
   // ============================================
-  reports() {
-    const { y, m } = this.reportMonth;
-    const summary = DB.getMonthSummary(y, m);
-    const catStats = DB.getMonthExpenseByCategory(y, m);
-    const platformStats = DB.getMonthExpenseByPlatform(y, m);
-    const paymentStats = DB.getMonthExpenseByPayment(y, m);
-    const trends = DB.getMonthTrends(6);
+  cr() {
+    // 顶部一级 Tab：报表 / 日历
+    const viewTabs = [
+      { key: 'report', label: '📊 报表' },
+      { key: 'calendar', label: '📅 日历' },
+    ];
+    // 二级 Tab：周 / 月 / 年 / 自定义
+    const rtabs = [
+      { key: 'week', label: '周账单' },
+      { key: 'month', label: '月账单' },
+      { key: 'year', label: '年账单' },
+      { key: 'custom', label: '自定义' },
+    ];
 
-    const catColors = ['#5a8a4a', '#8ba888', '#a8c8a0', '#d4a25e', '#c47a6a', '#8b9dc3', '#c4a46d', '#b8a0c8', '#a0c4b8', '#d4c4a0', '#c8b8a0', '#a8b8c4'];
+    const viewBar = `
+      <div class="cr-view-tabs">
+        ${viewTabs.map(t => `<div class="cr-view-tab ${this.reportView === t.key ? 'active' : ''}" onclick="Pages.setReportView('${t.key}')">${t.label}</div>`).join('')}
+      </div>
+    `;
 
-    // 饼图SVG
-    const totalCat = catStats.reduce((s, c) => s + c.amount, 0) || 1;
-    let cumulativeAngle = 0;
-    let pieSegments = '';
-    catStats.forEach((cat, i) => {
-      const angle = (cat.amount / totalCat) * 360;
-      const startAngle = cumulativeAngle;
-      const endAngle = cumulativeAngle + angle;
-      const x1 = 60 + 50 * Math.cos((startAngle - 90) * Math.PI / 180);
-      const y1 = 60 + 50 * Math.sin((startAngle - 90) * Math.PI / 180);
-      const x2 = 60 + 50 * Math.cos((endAngle - 90) * Math.PI / 180);
-      const y2 = 60 + 50 * Math.sin((endAngle - 90) * Math.PI / 180);
-      const largeArc = angle > 180 ? 1 : 0;
-      if (angle < 360) {
-        pieSegments += `<path d="M 60 60 L ${x1} ${y1} A 50 50 0 ${largeArc} 1 ${x2} ${y2} Z" fill="${catColors[i % catColors.length]}" stroke="#fff" stroke-width="1.5"/>`;
-      } else {
-        pieSegments += `<circle cx="60" cy="60" r="50" fill="${catColors[i % catColors.length]}"/>`;
-      }
-      cumulativeAngle = endAngle;
-    });
+    // ===== 子视图 1：报表 =====
+    const reportBar = `
+      <div class="cr-tabs">
+        ${rtabs.map(t => `<div class="cr-tab ${this.reportTab === t.key ? 'active' : ''}" onclick="Pages.setReportTab('${t.key}')">${t.label}</div>`).join('')}
+      </div>
+    `;
 
-    // 趋势柱状图
-    const maxTrend = Math.max(...trends.map(t => Math.max(t.income, t.expense)), 1);
-    const trendBars = trends.map((t, i) => {
-      const barH = (t.expense / maxTrend) * 100;
-      const incomeH = (t.income / maxTrend) * 100;
-      return `
-        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
-          <div style="display:flex;gap:2px;align-items:flex-end;height:100px;">
-            <div style="width:8px;height:${incomeH}px;background:var(--sage-green);border-radius:2px 2px 0 0;min-height:2px;"></div>
-            <div style="width:8px;height:${barH}px;background:var(--expense-color);border-radius:2px 2px 0 0;min-height:2px;opacity:0.7;"></div>
-          </div>
-          <div style="font-size:10px;color:var(--text-light);">${t.label}</div>
-        </div>
+    let reportBody = '';
+    if (this.reportTab === 'month') {
+      const { y, m } = this.reportMonth;
+      const summary = DB.getMonthSummary(y, m);
+      reportBody = `
+        ${this._renderPeriodBar({
+          label: `${y}年${m}月`,
+          onPrev: "Pages.changeReportMonth(-1)",
+          onNext: "Pages.changeReportMonth(1)",
+        })}
+        ${this._renderSummaryCards(summary)}
+        ${this._renderMonthExtra(y, m)}
       `;
-    }).join('');
+    } else if (this.reportTab === 'week') {
+      const today = DB.formatDate(new Date());
+      const sow = DB._startOfWeek(today);
+      const startStr = DB._addDays(sow, this.reportWeekOffset * 7);
+      const endStr = DB._addDays(startStr, 6);
+      const summary = DB.getRangeSummary(startStr, endStr);
+      const catStats = DB.getRangeExpenseByCategory(startStr, endStr);
+      const platformStats = DB.getRangeExpenseByPlatform(startStr, endStr);
+      const paymentStats = DB.getRangeExpenseByPayment(startStr, endStr);
+      const trends = DB.getWeekTrends(8);
+      reportBody = `
+        ${this._renderPeriodBar({
+          label: this.reportWeekOffset === 0 ? `本周 · ${startStr.slice(5)} - ${endStr.slice(5)}` : `${startStr.slice(5)} - ${endStr.slice(5)}`,
+          onPrev: "Pages.changeReportWeek(-1)",
+          onNext: "Pages.changeReportWeek(1)",
+        })}
+        ${this._renderSummaryCards(summary)}
+        ${this._renderDrillCharts({ catStats, platformStats, paymentStats })}
+        ${this._renderTrendChart(trends, '近8周收支趋势')}
+      `;
+    } else if (this.reportTab === 'year') {
+      const y = this.reportYear;
+      const summary = DB.getYearSummary(y);
+      const monthly = DB.getYearMonthly(y);
+      // 年度：直接复用趋势图显示 12 个月
+      const monthlyAsTrend = monthly.map(m => ({
+        label: m.label, income: m.income, expense: m.expense, balance: m.balance
+      }));
+      reportBody = `
+        ${this._renderPeriodBar({
+          label: `${y}年`,
+          onPrev: "Pages.changeReportYear(-1)",
+          onNext: "Pages.changeReportYear(1)",
+        })}
+        ${this._renderSummaryCards(summary)}
+        ${this._renderTrendChart(monthlyAsTrend, `${y}年12月收支趋势`)}
+        ${this._renderYearCategories(y)}
+      `;
+    } else if (this.reportTab === 'custom') {
+      const { startStr, endStr } = this._effectiveCustomRange();
+      const summary = DB.getRangeSummary(startStr, endStr);
+      const catStats = DB.getRangeExpenseByCategory(startStr, endStr);
+      const platformStats = DB.getRangeExpenseByPlatform(startStr, endStr);
+      const paymentStats = DB.getRangeExpenseByPayment(startStr, endStr);
+      reportBody = `
+        ${this._renderPeriodBar({
+          label: `${startStr} ~ ${endStr}`,
+          onClick: "Pages.openCustomRangePicker()",
+          clickable: true,
+          onPrev: "Pages.shiftCustomRange(-7)",
+          onNext: "Pages.shiftCustomRange(7)",
+        })}
+        ${this._renderSummaryCards(summary)}
+        ${this._renderDrillCharts({ catStats, platformStats, paymentStats })}
+      `;
+    }
+
+    // ===== 子视图 2：日历 =====
+    const calendarBody = this.calendar();
+
+    const reportBlock = `
+      ${reportBar}
+      ${reportBody}
+      <div style="height:20px;"></div>
+      ${Mascot.renderWithBubble('default')}
+    `;
 
     return `
-      <div class="card" style="display:flex;align-items:center;justify-content:space-between;">
-        <button class="calendar-nav-btn" onclick="Pages.changeReportMonth(-1)">‹</button>
-        <div class="calendar-month">${y}年${m}月</div>
-        <button class="calendar-nav-btn" onclick="Pages.changeReportMonth(1)">›</button>
-      </div>
+      ${viewBar}
+      ${this.reportView === 'report' ? reportBlock : calendarBody}
+    `;
+  },
 
+  // ----- 报表助手 -----
+  setReportView(key) {
+    this.reportView = key;
+    this.render();
+  },
+
+  setReportTab(key) {
+    this.reportTab = key;
+    // 切到非月时清掉旧的 reportMonth 会被覆盖
+    this.render();
+  },
+
+  changeReportMonth(delta) {
+    const d = new Date(this.reportMonth.y, this.reportMonth.m - 1 + delta, 1);
+    this.reportMonth = { y: d.getFullYear(), m: d.getMonth() + 1 };
+    this.render();
+  },
+
+  changeReportWeek(delta) {
+    this.reportWeekOffset += delta;
+    this.render();
+  },
+
+  changeReportYear(delta) {
+    this.reportYear += delta;
+    this.render();
+  },
+
+  _effectiveCustomRange() {
+    const today = DB.formatDate(new Date());
+    if (!this.customRange.startStr || !this.customRange.endStr) {
+      // 默认本月
+      const [y, m] = today.split('-').map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+      return {
+        startStr: `${y}-${String(m).padStart(2,'0')}-01`,
+        endStr: `${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,
+      };
+    }
+    return this.customRange;
+  },
+
+  shiftCustomRange(days) {
+    const r = this._effectiveCustomRange();
+    this.customRange = {
+      startStr: DB._addDays(r.startStr, days),
+      endStr: DB._addDays(r.endStr, days),
+    };
+    this.render();
+  },
+
+  openCustomRangePicker() {
+    const r = this._effectiveCustomRange();
+    const html = `
+      <div class="modal-overlay" onclick="if(event.target===this)App.closeModal()">
+        <div class="modal-sheet" style="padding:20px;">
+          <div class="modal-header">
+            <div class="modal-title">选择起止日期</div>
+            <button class="modal-close" onclick="App.closeModal()">×</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--text-secondary);">
+              起始日期
+              <input type="date" id="cr-start" class="modal-input" value="${r.startStr}" style="font-size:15px;padding:10px;border:1.5px solid var(--border-soft);border-radius:10px;background:var(--card-bg);">
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--text-secondary);">
+              结束日期
+              <input type="date" id="cr-end" class="modal-input" value="${r.endStr}" style="font-size:15px;padding:10px;border:1.5px solid var(--border-soft);border-radius:10px;background:var(--card-bg);">
+            </label>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary" style="flex:1;" onclick="App.closeModal()">取消</button>
+              <button class="btn btn-primary" style="flex:1;" onclick="Pages.applyCustomRange()">确定</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    App.showModal(html);
+  },
+
+  applyCustomRange() {
+    const s = document.getElementById('cr-start').value;
+    const e = document.getElementById('cr-end').value;
+    if (!s || !e || s > e) {
+      App.toast('起止日期无效');
+      return;
+    }
+    this.customRange = { startStr: s, endStr: e };
+    App.closeModal();
+    this.render();
+  },
+
+  // 渲染头部时段切换器
+  _renderPeriodBar({ label, onPrev, onNext, onClick, clickable }) {
+    return `
+      <div class="cr-period-bar">
+        <button class="calendar-nav-btn" onclick="${onPrev}">‹</button>
+        <div class="cr-period-text" ${onClick ? `onclick="${onClick}"` : ''} style="${onClick ? 'cursor:pointer;' : ''}flex:1;text-align:center;">
+          ${label}
+          ${onClick ? '<span style="font-size:11px;opacity:0.6;margin-left:6px;">✎</span>' : ''}
+        </div>
+        <button class="calendar-nav-btn" onclick="${onNext}">›</button>
+      </div>
+    `;
+  },
+
+  _renderSummaryCards(summary) {
+    return `
       <div class="report-summary-row">
         <div class="report-summary-card">
           <div class="accounts-summary-label">收入</div>
@@ -620,21 +794,94 @@ const Pages = {
           <div class="accounts-summary-value" style="color:var(--forest-green);">¥${DB.formatMoney(summary.balance)}</div>
         </div>
       </div>
+    `;
+  },
 
-      <!-- 月度趋势 -->
+  // 月度专属：6 月趋势 + 月度分类/平台/支付 图表块
+  _renderMonthExtra(y, m) {
+    const trends = DB.getMonthTrends(6);
+    const catStats = DB.getMonthExpenseByCategory(y, m);
+    const platformStats = DB.getMonthExpenseByPlatform(y, m);
+    const paymentStats = DB.getMonthExpenseByPayment(y, m);
+    return `
+      ${this._renderTrendChart(trends, '近6月收支趋势')}
+      ${this._renderDrillCharts({ catStats, platformStats, paymentStats })}
+    `;
+  },
+
+  // 年度专属：合并 12 个月的分类/平台/支付（暂取整年汇总数据）
+  _renderYearCategories(y) {
+    const startStr = `${y}-01-01`;
+    const endStr = `${y}-12-31`;
+    const catStats = DB.getRangeExpenseByCategory(startStr, endStr);
+    const platformStats = DB.getRangeExpenseByPlatform(startStr, endStr);
+    const paymentStats = DB.getRangeExpenseByPayment(startStr, endStr);
+    return this._renderDrillCharts({ catStats, platformStats, paymentStats });
+  },
+
+  // 共用：趋势柱状图
+  _renderTrendChart(trends, title) {
+    if (!trends || trends.length === 0) return '';
+    const maxTrend = Math.max(...trends.map(t => Math.max(t.income || 0, t.expense || 0)), 1);
+    const bars = trends.map(t => {
+      const expenseH = (t.expense || 0) / maxTrend * 100;
+      const incomeH = (t.income || 0) / maxTrend * 100;
+      return `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+          <div style="display:flex;gap:2px;align-items:flex-end;height:100px;">
+            <div style="width:8px;height:${incomeH}px;background:var(--sage-green);border-radius:2px 2px 0 0;min-height:2px;"></div>
+            <div style="width:8px;height:${expenseH}px;background:var(--expense-color);border-radius:2px 2px 0 0;min-height:2px;opacity:0.7;"></div>
+          </div>
+          <div style="font-size:10px;color:var(--text-light);">${t.label}</div>
+        </div>
+      `;
+    }).join('');
+    return `
       <div class="card report-section">
-        <div class="card-title"><span class="title-icon">📈</span>近6月收支趋势</div>
+        <div class="card-title"><span class="title-icon">📈</span>${title}</div>
         <div style="display:flex;gap:4px;align-items:flex-end;height:120px;margin-bottom:8px;">
-          ${trendBars}
+          ${bars}
         </div>
         <div style="display:flex;gap:12px;font-size:11px;color:var(--text-light);">
           <span><span class="color-dot" style="background:var(--sage-green);"></span> 收入</span>
           <span><span class="color-dot" style="background:var(--expense-color);opacity:0.7;"></span> 支出</span>
         </div>
       </div>
+    `;
+  },
 
-      <!-- 支出分类饼图 -->
-      ${catStats.length > 0 ? `
+  // 共用：分类饼图 + 平台 / 支付 列表 + 下钻点
+  _renderDrillCharts({ catStats, platformStats, paymentStats }) {
+    const catColors = ['#5a8a4a', '#8ba888', '#a8c8a0', '#d4a25e', '#c47a6a', '#8b9dc3', '#c4a46d', '#b8a0c8', '#a0c4b8', '#d4c4a0', '#c8b8a0', '#a8b8c4'];
+
+    // 饼图 SVG
+    let cumulativeAngle = 0;
+    let pieSegments = '';
+    const totalCat = (catStats || []).reduce((s, c) => s + c.amount, 0) || 0;
+    (catStats || []).forEach((cat, i) => {
+      if (totalCat === 0) return;
+      const angle = (cat.amount / totalCat) * 360;
+      const startAngle = cumulativeAngle;
+      const endAngle = cumulativeAngle + angle;
+      const x1 = 60 + 50 * Math.cos((startAngle - 90) * Math.PI / 180);
+      const y1 = 60 + 50 * Math.sin((startAngle - 90) * Math.PI / 180);
+      const x2 = 60 + 50 * Math.cos((endAngle - 90) * Math.PI / 180);
+      const y2 = 60 + 50 * Math.sin((endAngle - 90) * Math.PI / 180);
+      const largeArc = angle > 180 ? 1 : 0;
+      const color = catColors[i % catColors.length];
+      if (angle < 360) {
+        pieSegments += `<path d="M 60 60 L ${x1} ${y1} A 50 50 0 ${largeArc} 1 ${x2} ${y2} Z" fill="${color}" stroke="#fff" stroke-width="1.5"/>`;
+      } else {
+        pieSegments += `<circle cx="60" cy="60" r="50" fill="${color}"/>`;
+      }
+      cumulativeAngle = endAngle;
+    });
+
+    // 把钻取点 id 适配成 reportDrill 期望的字段
+    const drillCat = (catStats || []).map((c, i) => ({ ...c, __color: catColors[i % catColors.length] }));
+
+    return `
+      ${(catStats && catStats.length > 0) ? `
       <div class="card report-section">
         <div class="card-title"><span class="title-icon">🥧</span>支出分类</div>
         <div class="pie-chart-container">
@@ -645,12 +892,12 @@ const Pages = {
             <text x="60" y="70" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text-primary)">¥${DB.formatMoney(totalCat)}</text>
           </svg>
           <div class="pie-legend">
-            ${catStats.map((cat, i) => `
+            ${drillCat.map((cat, i) => `
               <div class="pie-legend-item clickable" onclick="Pages.openReportDetail('category', '${cat.categoryId}')">
                 <span class="pie-legend-dot" style="background:${catColors[i % catColors.length]};"></span>
-                <span class="pie-legend-name">${cat.icon} ${cat.categoryName}</span>
+                <span class="pie-legend-name">${cat.icon || ''} ${cat.categoryName}</span>
                 <span class="pie-legend-value">¥${DB.formatMoney(cat.amount)}</span>
-                <span class="pie-legend-pct">${(cat.amount / totalCat * 100).toFixed(0)}%</span>
+                <span class="pie-legend-pct">${totalCat > 0 ? (cat.amount / totalCat * 100).toFixed(0) : 0}%</span>
                 <span class="drill-chevron">›</span>
               </div>
             `).join('')}
@@ -659,19 +906,20 @@ const Pages = {
       </div>
       ` : ''}
 
-      <!-- 购物平台分析 -->
-      ${platformStats.length > 0 ? `
+      ${(platformStats && platformStats.length > 0) ? `
       <div class="card report-section">
         <div class="card-title"><span class="title-icon">🛒</span>购物平台分析</div>
         ${platformStats.map(p => {
           const total = platformStats.reduce((s, x) => s + x.amount, 0) || 1;
           const pct = (p.amount / total * 100).toFixed(1);
+          const color = p.color || p.__color || '#8ba888';
+          const pid = p.platform || p.platformId;
           return `
-            <div class="stat-list-item clickable" onclick="Pages.openReportDetail('platform', '${p.platformId}')">
-              <div class="stat-list-icon" style="background:${p.color}20;">${p.icon}</div>
+            <div class="stat-list-item clickable" onclick="Pages.openReportDetail('platform', '${pid}')">
+              <div class="stat-list-icon" style="background:${color}20;">${p.icon || ''}</div>
               <div class="stat-list-info">
                 <div class="stat-list-name">${p.platformName} <span style="color:var(--text-light);font-size:11px;">${pct}%</span></div>
-                <div class="stat-list-bar"><div class="stat-list-bar-fill" style="width:${pct}%;background:${p.color};"></div></div>
+                <div class="stat-list-bar"><div class="stat-list-bar-fill" style="width:${pct}%;background:${color};"></div></div>
               </div>
               <div class="stat-list-amount">¥${DB.formatMoney(p.amount)}</div>
               <span class="drill-chevron">›</span>
@@ -681,18 +929,18 @@ const Pages = {
       </div>
       ` : ''}
 
-      <!-- 支付方式分析 -->
-      ${paymentStats.length > 0 ? `
+      ${(paymentStats && paymentStats.length > 0) ? `
       <div class="card report-section">
         <div class="card-title"><span class="title-icon">💳</span>支付方式分析</div>
         ${paymentStats.map(p => {
           const total = paymentStats.reduce((s, x) => s + x.amount, 0) || 1;
           const pct = (p.amount / total * 100).toFixed(1);
-          const pm = DB.getPaymentMethod(p.paymentId);
+          const pm = DB.getPaymentMethod(p.paymentMethod || p.paymentId);
           const color = pm && pm.type === 'bnpl' ? '#d4a25e' : '#8ba888';
+          const pmid = p.paymentMethod || p.paymentId;
           return `
-            <div class="stat-list-item clickable" onclick="Pages.openReportDetail('payment', '${p.paymentId}')">
-              <div class="stat-list-icon" style="background:${color}20;">${p.icon}</div>
+            <div class="stat-list-item clickable" onclick="Pages.openReportDetail('payment', '${pmid}')">
+              <div class="stat-list-icon" style="background:${color}20;">${p.icon || ''}</div>
               <div class="stat-list-info">
                 <div class="stat-list-name">${p.paymentName} ${pm && pm.type === 'bnpl' ? '<span style="font-size:10px;color:var(--warn-color);">先用后付</span>' : ''} <span style="color:var(--text-light);font-size:11px;">${pct}%</span></div>
                 <div class="stat-list-bar"><div class="stat-list-bar-fill" style="width:${pct}%;background:${color};"></div></div>
@@ -704,48 +952,106 @@ const Pages = {
         }).join('')}
       </div>
       ` : ''}
-
-      <div style="height:20px;"></div>
-      ${Mascot.renderWithBubble('default')}
     `;
-  },
-
-  changeReportMonth(delta) {
-    const d = new Date(this.reportMonth.y, this.reportMonth.m - 1 + delta, 1);
-    this.reportMonth = { y: d.getFullYear(), m: d.getMonth() + 1 };
-    this.render();
   },
 
   // ============================================
   // 报表下钻：分类 / 平台 / 支付方式 明细页
-  // ============================================
+  //   drillPeriod: { kind: 'month', y, m } | { kind: 'week', startStr, endStr }
+  //              | { kind: 'year', y } | { kind: 'custom', startStr, endStr }
+// ============================================
   openReportDetail(type, id) {
-    const { y, m } = this.reportMonth;
-    this.reportDrill = { y, m, type, id };
+    const drillPeriod = this._currentDrillPeriod();
+    this.reportDrill = { ...drillPeriod, type, id };
     this.current = 'report-detail';
     this.render();
   },
 
   backToReports() {
-    // 明细页切换过的月份带回报表页，保持上下文一致
     if (this.reportDrill) {
-      this.reportMonth = { y: this.reportDrill.y, m: this.reportDrill.m };
+      const p = this.reportDrill;
+      // 把明细页里改过的周期带回报表对应 Tab
+      if (p.kind === 'month') this.reportMonth = { y: p.y, m: p.m };
+      else if (p.kind === 'year') this.reportYear = p.y;
+      // week/custom 没有"全局时段状态"
     }
     this.reportDrill = null;
-    this.current = 'reports';
+    this.current = 'cr';
     this.render();
   },
 
-  changeReportDetailMonth(delta) {
+  // 旧名 alias 兼容
+  changeReportDetailMonth(delta) { return this.changeReportDetailPeriod(delta); },
+
+  changeReportDetailPeriod(delta) {
     if (!this.reportDrill) return;
-    const d = new Date(this.reportDrill.y, this.reportDrill.m - 1 + delta, 1);
-    this.reportDrill.y = d.getFullYear();
-    this.reportDrill.m = d.getMonth() + 1;
+    const p = this.reportDrill;
+    if (p.kind === 'month') {
+      const d = new Date(p.y, p.m - 1 + delta, 1);
+      p.y = d.getFullYear();
+      p.m = d.getMonth() + 1;
+    } else if (p.kind === 'week') {
+      p.startStr = DB._addDays(p.startStr, delta * 7);
+      p.endStr = DB._addDays(p.endStr, delta * 7);
+    } else if (p.kind === 'year') {
+      p.y += delta;
+    } else if (p.kind === 'custom') {
+      p.startStr = DB._addDays(p.startStr, delta);
+      p.endStr = DB._addDays(p.endStr, delta);
+    }
     this.render();
+  },
+
+  // 返回当前报表页面对应的"钻取周期"快照
+  _currentDrillPeriod() {
+    if (this.reportTab === 'month') return { kind: 'month', y: this.reportMonth.y, m: this.reportMonth.m };
+    if (this.reportTab === 'year')  return { kind: 'year', y: this.reportYear };
+    if (this.reportTab === 'week') {
+      const today = DB.formatDate(new Date());
+      const sow = DB._startOfWeek(today);
+      const startStr = DB._addDays(sow, this.reportWeekOffset * 7);
+      const endStr = DB._addDays(startStr, 6);
+      return { kind: 'week', startStr, endStr };
+    }
+    if (this.reportTab === 'custom') return { kind: 'custom', ...this._effectiveCustomRange() };
+    return { kind: 'month', y: this.reportMonth.y, m: this.reportMonth.m };
   },
 
   reportDetail() {
-    const { y, m, type, id } = this.reportDrill;
+    const drill = this.reportDrill;
+    const { type, id } = drill;
+
+    // 周期标签
+    let periodLabel = '', periodSwitcher = '';
+    if (drill.kind === 'month') {
+      periodLabel = `${drill.y}年${drill.m}月`;
+      periodSwitcher = `
+        <button class="calendar-nav-btn" onclick="Pages.changeReportDetailPeriod(-1)">‹</button>
+        <span class="cr-period-text">${periodLabel}</span>
+        <button class="calendar-nav-btn" onclick="Pages.changeReportDetailPeriod(1)">›</button>
+      `;
+    } else if (drill.kind === 'week') {
+      periodLabel = `本周 · ${drill.startStr.slice(5)} - ${drill.endStr.slice(5)}`;
+      periodSwitcher = `
+        <button class="calendar-nav-btn" onclick="Pages.changeReportDetailPeriod(-1)">‹</button>
+        <span class="cr-period-text">${periodLabel}</span>
+        <button class="calendar-nav-btn" onclick="Pages.changeReportDetailPeriod(1)">›</button>
+      `;
+    } else if (drill.kind === 'year') {
+      periodLabel = `${drill.y}年`;
+      periodSwitcher = `
+        <button class="calendar-nav-btn" onclick="Pages.changeReportDetailPeriod(-1)">‹</button>
+        <span class="cr-period-text">${periodLabel}</span>
+        <button class="calendar-nav-btn" onclick="Pages.changeReportDetailPeriod(1)">›</button>
+      `;
+    } else if (drill.kind === 'custom') {
+      periodLabel = `${drill.startStr} ~ ${drill.endStr}`;
+      periodSwitcher = `
+        <button class="calendar-nav-btn" onclick="Pages.changeReportDetailPeriod(-1)">‹</button>
+        <span class="cr-period-text">${periodLabel}</span>
+        <button class="calendar-nav-btn" onclick="Pages.changeReportDetailPeriod(1)">›</button>
+      `;
+    }
 
     // 名称与图标
     let drillName = '明细', drillIcon = '📝';
@@ -760,21 +1066,30 @@ const Pages = {
       drillIcon = DB.getPaymentMethodIcon(id);
     }
 
-    // 当月该维度的所有支出
-    const accounts = DB.getMonthAccounts(y, m)
+    // 取出该周期内账目
+    let accounts = [];
+    if (drill.kind === 'month') accounts = DB.getMonthAccounts(drill.y, drill.m);
+    else if (drill.kind === 'year' || drill.kind === 'week' || drill.kind === 'custom') {
+      accounts = DB.getRangeAccounts(drill.startStr, drill.endStr);
+    }
+    accounts = accounts
       .filter(a => a.type === 'expense')
       .filter(a => type === 'category' ? a.categoryId === id
         : type === 'platform' ? a.platform === id
-        : a.paymentMethod === id)
-      .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+        : a.paymentMethod === id);
 
     const total = accounts.reduce((s, a) => s + a.amount, 0);
-    const monthSummary = DB.getMonthSummary(y, m);
-    const share = monthSummary.expense > 0 ? (total / monthSummary.expense * 100).toFixed(1) : '0';
+
+    // 占比
+    let periodExpense = 0;
+    if (drill.kind === 'month') periodExpense = DB.getMonthSummary(drill.y, drill.m).expense;
+    else if (drill.kind === 'year') periodExpense = DB.getYearSummary(drill.y).expense;
+    else periodExpense = DB.getRangeSummary(drill.startStr, drill.endStr).expense;
+    const share = periodExpense > 0 ? (total / periodExpense * 100).toFixed(1) : '0';
     const avg = accounts.length ? total / accounts.length : 0;
     const maxAmount = Math.max(...accounts.map(a => a.amount), 1);
 
-    // 按日期分组（倒序）
+    // 按日期分组
     const groups = {};
     accounts.forEach(a => {
       if (!groups[a.date]) groups[a.date] = [];
@@ -789,7 +1104,7 @@ const Pages = {
       return `
         <div class="report-date-group">
           <div class="report-date-header">
-            <span>${m}月${day}日</span>
+            <span>${day}日</span>
             <span class="report-date-total">共${dayAccounts.length}笔 · ¥${DB.formatMoney(dayTotal)}</span>
           </div>
           ${dayAccounts.map(a => {
@@ -810,15 +1125,21 @@ const Pages = {
       `;
     }).join('');
 
+    // 头部 sticky 退出条
+    const stickyBar = `
+      <div class="drill-sticky-bar">
+        <button class="drill-close-btn" onclick="Pages.backToReports()" aria-label="返回报表">
+          <span class="drill-close-arrow">←</span>
+          <span>返回</span>
+        </button>
+        <span class="drill-sticky-title">${drillIcon} ${drillName}${drill.kind === 'month' ? ` · ${drill.m}月` : ''}</span>
+      </div>
+    `;
+
     return `
-      <div class="card" style="display:flex;align-items:center;gap:6px;justify-content:space-between;">
-        <button class="calendar-nav-btn" onclick="Pages.backToReports()" title="返回报表">‹</button>
-        <div style="font-size:16px;font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${drillIcon} ${drillName}</div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button class="calendar-nav-btn" onclick="Pages.changeReportDetailMonth(-1)">‹</button>
-          <span style="font-size:13px;font-weight:600;color:var(--text-secondary);">${y}年${m}月</span>
-          <button class="calendar-nav-btn" onclick="Pages.changeReportDetailMonth(1)">›</button>
-        </div>
+      ${stickyBar}
+      <div class="card" style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
+        ${periodSwitcher}
       </div>
 
       <div class="report-summary-row">
@@ -831,7 +1152,7 @@ const Pages = {
           <div class="accounts-summary-value">${accounts.length}笔</div>
         </div>
         <div class="report-summary-card">
-          <div class="accounts-summary-label">占月支出</div>
+          <div class="accounts-summary-label">占${drill.kind==='year'?'全年':'区间'}支出</div>
           <div class="accounts-summary-value" style="color:var(--forest-green);">${share}%</div>
         </div>
       </div>
@@ -848,8 +1169,8 @@ const Pages = {
       </div>
 
       <div class="card report-section">
-        <div class="card-title"><span class="title-icon">📋</span>${y}年${m}月 · ${drillName}账单明细</div>
-        ${accounts.length > 0 ? groupHtml : Mascot.renderEmpty('empty', '这个月还没有该分类的支出哦～')}
+        <div class="card-title"><span class="title-icon">📋</span>${periodLabel} · ${drillName}账单明细</div>
+        ${accounts.length > 0 ? groupHtml : Mascot.renderEmpty('empty', '这个周期还没有该分类的支出哦～')}
       </div>
 
       <div style="height:20px;"></div>
@@ -1115,12 +1436,20 @@ const Pages = {
     const content = document.getElementById('main-content');
     const titles = {
       home: '工作台', calendar: '日历', accounts: '账本',
-      shopping: '我的购物', reports: '报表',
+      shopping: '我的购物', reports: '报表', cr: '报表/日历',
       'report-detail': '明细',
       categories: '分类管理', platforms: '购物平台',
       payments: '支付方式', settings: '设置'
     };
     let title = titles[this.current];
+    if (this.current === 'cr') {
+      if (this.reportView === 'report') {
+        const map = { week: '周账单', month: '月账单', year: '年账单', custom: '自定义账单' };
+        title = map[this.reportTab] || '报表';
+      } else {
+        title = '日历';
+      }
+    }
     if (this.current === 'report-detail' && this.reportDrill) {
       const d = this.reportDrill;
       let n = '明细';
@@ -1134,10 +1463,11 @@ const Pages = {
     let html = '';
     switch(this.current) {
       case 'home': html = this.home(); break;
-      case 'calendar': html = this.calendar(); break;
+      case 'calendar': this.current = 'cr'; this.reportView = 'calendar'; html = this.cr(); break;
       case 'accounts': html = this.accounts(); break;
       case 'shopping': html = this.shopping(); break;
-      case 'reports': html = this.reports(); break;
+      case 'reports': this.current = 'cr'; html = this.cr(); break;
+      case 'cr': html = this.cr(); break;
       case 'report-detail': html = this.reportDetail(); break;
       case 'categories': html = this.categories(); break;
       case 'platforms': html = this.platforms(); break;
@@ -1146,9 +1476,13 @@ const Pages = {
     }
     content.innerHTML = html;
     content.scrollTop = 0;
+    window.scrollTo(0, 0);
 
-    // 更新导航高亮（明细页属于报表，高亮报表导航）
-    const activePage = this.current === 'report-detail' ? 'reports' : this.current;
+    // 明细页：让 sticky 退出条占据顶部位置 (隐藏全局 topbar)
+    document.body.classList.toggle('is-drill', this.current === 'report-detail');
+
+    // 更新导航高亮
+    const activePage = this.current === 'report-detail' || this.current === 'cr' ? 'cr' : this.current;
     document.querySelectorAll('.nav-item').forEach(item => {
       item.classList.toggle('active', item.dataset.page === activePage);
     });
